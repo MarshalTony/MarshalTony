@@ -27,3 +27,15 @@ export const divisionsField = z.string().optional().transform((s, ctx) =>
     return d;
   }),
 );
+
+/** Fee lines, one per line: "Name, amount" (amount may contain commas as thousands separators at the end). */
+export const feeLinesField = z.string().transform((s, ctx) => {
+  const out = s.split("\n").map((l) => l.trim()).filter(Boolean).map((line, i) => {
+    const m = line.match(/^(.+?)[,\t:]\s*([\d,. ]+)$/);
+    const amount = m ? Number(m[2].replace(/[ ,]/g, "")) : NaN;
+    if (!m || !Number.isFinite(amount) || amount <= 0) ctx.addIssue({ code: "custom", message: `Line ${i + 1} must look like "Tuition, 800000"` });
+    return { name: m ? m[1].trim().slice(0, 100) : line, amount };
+  });
+  if (!out.length) ctx.addIssue({ code: "custom", message: "Add at least one fee item" });
+  return out;
+});

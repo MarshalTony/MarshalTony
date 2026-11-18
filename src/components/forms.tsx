@@ -14,9 +14,12 @@ import { cn } from "@/lib/utils";
 type ServerAction = (prev: ActionResult | null, fd: FormData) => Promise<ActionResult>;
 
 const ErrorsCtx = React.createContext<Record<string, string>>({});
+const PendingCtx = React.createContext(false);
 
 export function SubmitButton({ children, pendingText, ...props }: ButtonProps & { pendingText?: string }) {
-  const { pending } = useFormStatus();
+  const status = useFormStatus();
+  const ctxPending = React.useContext(PendingCtx);
+  const pending = status.pending || ctxPending;
   return (
     <Button type="submit" disabled={pending || props.disabled} {...props}>
       {pending && <Loader2 className="animate-spin" />}
@@ -32,7 +35,8 @@ export function ActionForm({
   submitVariant?: ButtonProps["variant"]; resetOnSuccess?: boolean; onSuccess?: (r: ActionResult) => void;
   hideSubmit?: boolean; confirmText?: string; refresh?: boolean;
 }) {
-  const [state, formAction] = useActionState(action, null);
+  const [state, formAction, isPending] = useActionState(action, null);
+  const [, startTransition] = React.useTransition();
   const formRef = React.useRef<HTMLFormElement>(null);
   const router = useRouter();
   const lastState = React.useRef<ActionResult | null>(null);
@@ -52,13 +56,19 @@ export function ActionForm({
   }, [state, resetOnSuccess, onSuccess, router, refresh]);
 
   return (
+    <PendingCtx.Provider value={isPending}>
     <ErrorsCtx.Provider value={state && !state.ok ? state.fieldErrors ?? {} : {}}>
       <form
         ref={formRef}
-        action={formAction}
         className={cn("space-y-4", className)}
+        // Submitted manually (not via the `action` prop) so React does not clear
+        // the user's input when the server returns a validation error.
         onSubmit={(e) => {
-          if (confirmText && !window.confirm(confirmText)) e.preventDefault();
+          e.preventDefault();
+          if (isPending) return;
+          if (confirmText && !window.confirm(confirmText)) return;
+          const fd = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+          startTransition(() => formAction(fd));
         }}
       >
         {children}
@@ -72,6 +82,7 @@ export function ActionForm({
         )}
       </form>
     </ErrorsCtx.Provider>
+    </PendingCtx.Provider>
   );
 }
 
