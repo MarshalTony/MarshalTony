@@ -1,6 +1,9 @@
 import "server-only";
 import React from "react";
-import { Document, Page, Text, View, Image, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image, StyleSheet, renderToBuffer, Font } from "@react-pdf/renderer";
+
+// Never split words with hyphens ("Outstand-ing"); wrap whole words only.
+Font.registerHyphenationCallback((word) => [word]);
 import { prisma } from "@/lib/db";
 import { readStoredFile } from "../storage";
 

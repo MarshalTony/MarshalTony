@@ -44,6 +44,7 @@ export function StudentForm({
             <TextField label="Previous school" name="previousSchool" defaultValue={s?.previousSchool ?? ""} />
             <TextField label="UNEB index no." name="unebIndexNo" defaultValue={s?.unebIndexNo ?? ""} />
             <TextField label="Learner ID (LIN)" name="linNumber" defaultValue={s?.linNumber ?? ""} />
+            <TextField label="SchoolPay code" name="schoolPayCode" defaultValue={s?.schoolPayCode ?? ""} />
           </Grid>
           {s && <p className="text-xs text-slate-500">Class and stream are changed from the student profile (Transfer stream) or through promotion, so the history is kept.</p>}
         </CardContent>

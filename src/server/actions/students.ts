@@ -16,7 +16,7 @@ const studentFields = {
   classId: zs.id(), streamId: zs.id(), residence: z.enum(["DAY", "BOARDING"]), combinationId: zs.optId(),
   nationality: zs.optStr(40), religion: zs.optStr(40), homeAddress: zs.optStr(200), previousSchool: zs.optStr(120),
   medicalInfo: zs.optStr(1000), emergencyContactName: zs.optStr(100), emergencyContactPhone: zs.optPhone(),
-  unebIndexNo: zs.optStr(30), linNumber: zs.optStr(30),
+  unebIndexNo: zs.optStr(30), linNumber: zs.optStr(30), schoolPayCode: zs.optStr(30),
 };
 
 export const createStudent = action(

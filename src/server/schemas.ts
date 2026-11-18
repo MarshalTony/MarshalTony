@@ -8,8 +8,9 @@ export const bandsField = z.string().transform((s, ctx) => {
   // One band per line: GRADE, MIN, MAX, POINTS, REMARK
   const rows = s.split("\n").map((l) => l.trim()).filter(Boolean);
   const out = rows.map((line, i) => {
-    const [grade, min, max, points, ...remark] = line.split(",").map((x) => x.trim());
-    const b = { grade, minScore: Number(min), maxScore: Number(max), points: Number(points), remark: remark.join(", ") };
+    const [main, ...desc] = line.split("|");
+    const [grade, min, max, points, ...remark] = main.split(",").map((x) => x.trim());
+    const b = { grade, minScore: Number(min), maxScore: Number(max), points: Number(points), remark: remark.join(", "), description: desc.join("|").trim() || null };
     if (!grade || [b.minScore, b.maxScore, b.points].some((n) => !Number.isFinite(n)) || b.minScore > b.maxScore || b.minScore < 0 || b.maxScore > 100) {
       ctx.addIssue({ code: "custom", message: `Line ${i + 1} is invalid: "${line}"` });
     }

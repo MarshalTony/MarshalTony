@@ -14,7 +14,7 @@ export const saveSchoolProfile = action(
     revalidate: "/",
     schema: z.object({
       name: zs.str(150), motto: zs.optStr(200), address: zs.optStr(300), poBox: zs.optStr(100), website: zs.optStr(150),
-      email: zs.email(), phone: zs.optStr(40), altPhone: zs.optStr(40), centreNumberUce: zs.optStr(20), centreNumberUace: zs.optStr(20),
+      email: zs.email(), altEmail: zs.email(), phone: zs.optStr(40), altPhone: zs.optStr(40), centreNumberUce: zs.optStr(20), centreNumberUace: zs.optStr(20),
       headteacherName: zs.optStr(120), reportFooter: zs.optStr(300),
     }),
   },
@@ -33,7 +33,7 @@ export const saveReportTemplate = action(
     permission: "settings.manage",
     schema: z.object({
       showPhoto: zs.bool(), showSubjectPositions: zs.bool(), showStreamPosition: zs.bool(), showClassPosition: zs.bool(),
-      showAttendance: zs.bool(), showGradingKey: zs.bool(), classTeacherLabel: zs.str(60), dosLabel: zs.str(60), headLabel: zs.str(60),
+      showAttendance: zs.bool(), showGradingKey: zs.bool(), cbcOLevel: zs.bool(), classTeacherLabel: zs.str(60), dosLabel: zs.str(60), headLabel: zs.str(60),
     }),
   },
   async (input, user) => {
@@ -234,13 +234,14 @@ export const saveGradingScale = action(
     permission: "exams.manage",
     revalidate: "/settings/grading",
     schema: z.object({
-      id: zs.optId(), name: zs.str(80), level: z.enum(["O_LEVEL", "A_LEVEL"]), appliesTo: z.enum(["ALL", "PRINCIPAL", "SUBSIDIARY"]), isDefault: zs.bool(),
+      id: zs.optId(), name: zs.str(80), level: z.enum(["O_LEVEL", "A_LEVEL"]), appliesTo: z.enum(["ALL", "PRINCIPAL", "SUBSIDIARY", "ACTIVITY"]), isDefault: zs.bool(),
       bands: bandsField,
     }),
   },
   async ({ id, bands, ...data }, user) => {
     const sorted = [...bands].sort((a, b) => a.minScore - b.minScore);
-    if (sorted[0].minScore !== 0) throw new UserError("The lowest band must start at 0.");
+    if (data.appliesTo !== "ACTIVITY" && sorted[0].minScore !== 0) throw new UserError("The lowest band must start at 0.");
+    if (data.appliesTo === "ACTIVITY" && sorted[sorted.length - 1].maxScore > 3) throw new UserError("Activity scores are out of 3.");
     for (let i = 1; i < sorted.length; i++) if (sorted[i].minScore <= sorted[i - 1].minScore) throw new UserError("Bands must have different minimum scores.");
     await prisma.$transaction(async (tx) => {
       if (data.isDefault) await tx.gradingScale.updateMany({ where: { level: data.level, appliesTo: data.appliesTo }, data: { isDefault: false } });

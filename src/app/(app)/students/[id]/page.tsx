@@ -70,7 +70,7 @@ export default async function StudentProfile({ params }: { params: Promise<{ id:
                 ["Gender", s.gender === "MALE" ? "Male" : "Female"], ["Date of birth", fmtDate(s.dateOfBirth)], ["Admitted", fmtDate(s.admissionDate)],
                 ["Class", `${s.schoolClass.name} ${s.stream.name}`], ["Combination", s.combination?.code ?? "—"], ["Residence", s.residence === "DAY" ? "Day" : "Boarding"],
                 ["Nationality", s.nationality], ["Religion", s.religion], ["Previous school", s.previousSchool],
-                ["UNEB index no.", s.unebIndexNo], ["LIN", s.linNumber], ["Home address", s.homeAddress],
+                ["UNEB index no.", s.unebIndexNo], ["LIN", s.linNumber], ["SchoolPay code", s.schoolPayCode], ["Home address", s.homeAddress],
                 ["Emergency contact", s.emergencyContactName ? `${s.emergencyContactName} (${s.emergencyContactPhone ?? "—"})` : "—"],
                 ["Medical information", s.medicalInfo], ["Portal account", s.user ? `${s.user.username}${s.user.isActive ? "" : " (inactive)"}` : "None"],
               ]} />

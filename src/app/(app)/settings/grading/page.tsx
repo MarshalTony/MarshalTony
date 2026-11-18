@@ -6,7 +6,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle } from "@/components/ui
 import { Table, THead, TH, TR, TD } from "@/components/data-table";
 
 const levelOpts = [{ value: "O_LEVEL", label: "O-Level" }, { value: "A_LEVEL", label: "A-Level" }];
-const appliesOpts = [{ value: "ALL", label: "All subjects" }, { value: "PRINCIPAL", label: "Principal subjects" }, { value: "SUBSIDIARY", label: "Subsidiary subjects" }];
+const appliesOpts = [{ value: "ALL", label: "All subjects" }, { value: "PRINCIPAL", label: "Principal subjects" }, { value: "SUBSIDIARY", label: "Subsidiary subjects" }, { value: "ACTIVITY", label: "Activities of Integration (scores out of 3)" }];
 
 export default async function GradingSettings() {
   await requirePage("exams.manage");
@@ -35,9 +35,9 @@ export default async function GradingSettings() {
             <CardContent>
               <p className="mb-2 text-xs text-slate-500">{s.level === "O_LEVEL" ? "O-Level" : "A-Level"} · {appliesOpts.find((a) => a.value === s.appliesTo)?.label}</p>
               <Table>
-                <THead><tr><TH>Grade</TH><TH>Range (%)</TH><TH>Points</TH><TH>Remark</TH></tr></THead>
+                <THead><tr><TH>{s.appliesTo === "ACTIVITY" ? "Identifier" : "Grade"}</TH><TH>{s.appliesTo === "ACTIVITY" ? "Score range" : "Range (%)"}</TH><TH>Points</TH><TH>Remark</TH></tr></THead>
                 <tbody>
-                  {s.bands.map((b) => <TR key={b.id}><TD className="font-semibold">{b.grade}</TD><TD>{Number(b.minScore)} – {Number(b.maxScore)}</TD><TD>{Number(b.points)}</TD><TD>{b.remark}</TD></TR>)}
+                  {s.bands.map((b) => <TR key={b.id}><TD className="font-semibold">{b.grade}</TD><TD>{Number(b.minScore)} – {Number(b.maxScore)}</TD><TD>{Number(b.points)}</TD><TD>{b.remark}{b.description && <p className="text-xs text-slate-500">{b.description}</p>}</TD></TR>)}
                 </tbody>
               </Table>
             </CardContent>
@@ -77,7 +77,7 @@ export default async function GradingSettings() {
   );
 }
 
-function ScaleFields({ s }: { s?: { name: string; level: string; appliesTo: string; isDefault: boolean; bands: { grade: string; minScore: unknown; maxScore: unknown; points: unknown; remark: string }[] } }) {
+function ScaleFields({ s }: { s?: { name: string; level: string; appliesTo: string; isDefault: boolean; bands: { grade: string; minScore: unknown; maxScore: unknown; points: unknown; remark: string; description: string | null }[] } }) {
   return (
     <>
       <TextField label="Name" name="name" defaultValue={s?.name ?? ""} required />
@@ -87,12 +87,12 @@ function ScaleFields({ s }: { s?: { name: string; level: string; appliesTo: stri
       </Grid>
       <CheckboxField name="isDefault" label="Use as the default scale" defaultChecked={s?.isDefault} />
       <TextAreaField
-        label="Bands — one per line: GRADE, MIN %, MAX %, POINTS, REMARK"
+        label="Bands — one per line: GRADE, MIN, MAX, POINTS, REMARK | optional long description"
         name="bands"
         rows={9}
         required
         className="font-mono"
-        defaultValue={s?.bands.map((b) => `${b.grade}, ${Number(b.minScore)}, ${Number(b.maxScore)}, ${Number(b.points)}, ${b.remark}`).join("\n")}
+        defaultValue={s?.bands.map((b) => `${b.grade}, ${Number(b.minScore)}, ${Number(b.maxScore)}, ${Number(b.points)}, ${b.remark}${b.description ? ` | ${b.description}` : ""}`).join("\n")}
         placeholder={"A, 80, 100, 6, Excellent\nB, 70, 79.99, 5, Very good"}
       />
     </>

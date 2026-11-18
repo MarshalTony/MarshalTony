@@ -7,7 +7,7 @@ import {
 import { UserError } from "../action";
 
 export async function loadScales(level: Level): Promise<Scale[]> {
-  const scales = await prisma.gradingScale.findMany({ where: { level, isDefault: true }, include: { bands: true } });
+  const scales = await prisma.gradingScale.findMany({ where: { level, isDefault: true, appliesTo: { not: "ACTIVITY" } }, include: { bands: true } });
   return scales.map((s) => ({
     appliesTo: s.appliesTo,
     bands: s.bands.map((b) => ({ grade: b.grade, minScore: Number(b.minScore), maxScore: Number(b.maxScore), points: Number(b.points), remark: b.remark })),

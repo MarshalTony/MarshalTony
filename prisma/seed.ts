@@ -11,6 +11,15 @@ import { PERMISSIONS, DEFAULT_ROLES, permissionModule } from "../src/lib/permiss
 const prisma = new PrismaClient();
 const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
 
+// O-Level (competency-based) end-of-term grades, as printed on the school's report card
+const O_LEVEL_BANDS = [
+  { grade: "A", minScore: 90, maxScore: 100, points: 5, remark: "Exceptional", description: "Demonstrates an extraordinary level of competency by applying innovatively and creatively the acquired knowledge and skills in real life situations" },
+  { grade: "B", minScore: 80, maxScore: 89.99, points: 4, remark: "Outstanding", description: "Demonstrates high level of competency by applying the acquired knowledge and skills in real life situations" },
+  { grade: "C", minScore: 60, maxScore: 79.99, points: 3, remark: "Satisfactory", description: "Demonstrates an adequate level of competency by applying the acquired knowledge and skills in real life situations" },
+  { grade: "D", minScore: 50, maxScore: 59.99, points: 2, remark: "Basic", description: "Demonstrates a minimum level of competency by applying the acquired knowledge and skills in real life situations" },
+  { grade: "E", minScore: 0, maxScore: 49.99, points: 1, remark: "Elementary", description: "Demonstrates below the basic level of competency by applying the acquired knowledge and skills in real life situations" },
+];
+
 async function main() {
   // ---- School profile ----
   await prisma.schoolSetting.upsert({
@@ -19,12 +28,15 @@ async function main() {
     create: {
       id: 1,
       name: "Bishop Ogez High School",
-      motto: "",
+      motto: "We strive for knowledge and excellence",
+      poBox: "P.O. Box 175, Bushenyi",
+      altPhone: "0772984381",
+      altEmail: "info@bishopogez.com",
       website: "www.bishopogez.com",
       email: "ogezhigh@gmail.com",
       phone: "+256 772 314 931",
-      address: "Uganda",
-      reportFooter: "This report is not valid without the school stamp.",
+      address: "Bushenyi, Uganda",
+      reportFooter: "This Report is invalid, without school Stamp",
       reportTemplate: {
         showPhoto: true, showSubjectPositions: true, showStreamPosition: true, showClassPosition: true,
         showAttendance: true, showGradingKey: true, classTeacherLabel: "Class Teacher", dosLabel: "Director of Studies",
@@ -172,11 +184,7 @@ async function main() {
       data: {
         name: "O-Level Competency-Based (A–E)", level: "O_LEVEL", appliesTo: "ALL", isDefault: true,
         bands: { create: [
-          { grade: "A", minScore: 80, maxScore: 100, points: 5, remark: "Exceptional" },
-          { grade: "B", minScore: 70, maxScore: 79.99, points: 4, remark: "Outstanding" },
-          { grade: "C", minScore: 60, maxScore: 69.99, points: 3, remark: "Satisfactory" },
-          { grade: "D", minScore: 50, maxScore: 59.99, points: 2, remark: "Basic" },
-          { grade: "E", minScore: 0, maxScore: 49.99, points: 1, remark: "Elementary" },
+          ...O_LEVEL_BANDS,
         ] },
       },
     });
@@ -222,6 +230,40 @@ async function main() {
   }
   await prisma.resultRule.upsert({ where: { level: "O_LEVEL" }, update: {}, create: { level: "O_LEVEL", rankingBasis: "AVERAGE", tieMethod: "COMPETITION", absentPolicy: "EXCLUDE", minSubjectsToRank: 1, topClassCount: 12, topStreamCount: 3 } });
   await prisma.resultRule.upsert({ where: { level: "A_LEVEL" }, update: {}, create: { level: "A_LEVEL", rankingBasis: "POINTS", tieMethod: "COMPETITION", absentPolicy: "EXCLUDE", minSubjectsToRank: 1, topClassCount: 12, topStreamCount: 3 } });
+
+  // Upgrade: the original seeded O-Level scale (A ≥ 80) becomes the school's scale (A ≥ 90) — only if untouched.
+  const oScale = await prisma.gradingScale.findFirst({ where: { name: "O-Level Competency-Based (A–E)" }, include: { bands: true } });
+  const original = oScale && oScale.bands.length === 5 &&
+    Number(oScale.bands.find((x) => x.grade === "A")?.minScore) === 80 && Number(oScale.bands.find((x) => x.grade === "B")?.minScore) === 70;
+  if (oScale && original) {
+    await prisma.gradeBand.deleteMany({ where: { scaleId: oScale.id } });
+    await prisma.gradeBand.createMany({ data: O_LEVEL_BANDS.map((x) => ({ ...x, scaleId: oScale.id })) });
+    console.log("O-Level grading scale updated to the school's report-card bands.");
+  }
+
+  // Report header details from the school's report card — filled only where still empty.
+  const sch = await prisma.schoolSetting.findUniqueOrThrow({ where: { id: 1 } });
+  const fill: Record<string, string> = {};
+  if (!sch.motto) fill.motto = "We strive for knowledge and excellence";
+  if (!sch.poBox) fill.poBox = "P.O. Box 175, Bushenyi";
+  if (!sch.altPhone) fill.altPhone = "0772984381";
+  if (!sch.altEmail) fill.altEmail = "info@bishopogez.com";
+  if (!sch.reportFooter || sch.reportFooter === "This report is not valid without the school stamp.") fill.reportFooter = "This Report is invalid, without school Stamp";
+  if (Object.keys(fill).length) await prisma.schoolSetting.update({ where: { id: 1 }, data: fill });
+
+  // Activities of Integration identifiers (scores out of 3) — created on upgrade too
+  if (!(await prisma.gradingScale.findFirst({ where: { level: "O_LEVEL", appliesTo: "ACTIVITY" } }))) {
+    await prisma.gradingScale.create({
+      data: {
+        name: "Activities of Integration (out of 3)", level: "O_LEVEL", appliesTo: "ACTIVITY", isDefault: true,
+        bands: { create: [
+          { grade: "3", minScore: 2.5, maxScore: 3, points: 3, remark: "Outstanding", description: "Most or all LOs achieved for overall achievement" },
+          { grade: "2", minScore: 1.5, maxScore: 2.49, points: 2, remark: "Moderate", description: "Many LOs achieved, enough for overall achievement" },
+          { grade: "1", minScore: 0.1, maxScore: 1.49, points: 1, remark: "Basic", description: "Few LOs achieved, but not sufficient for overall achievement" },
+        ] },
+      },
+    });
+  }
 
   // ---- Exam types ----
   const examTypes: [string, string, number][] = [["BOT", "Beginning of Term", 1], ["MOT", "Mid-Term", 2], ["EOT", "End of Term", 3], ["MOCK", "Mock Examinations", 4], ["TERM", "Term Final (combined)", 5]];

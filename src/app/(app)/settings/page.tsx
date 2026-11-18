@@ -24,6 +24,7 @@ export default async function SchoolSettings() {
               <TextField label="Telephone" name="phone" defaultValue={s.phone ?? ""} />
               <TextField label="Alternative telephone" name="altPhone" defaultValue={s.altPhone ?? ""} />
               <TextField label="Email" name="email" type="email" defaultValue={s.email ?? ""} />
+              <TextField label="Second email" name="altEmail" type="email" defaultValue={s.altEmail ?? ""} />
               <TextField label="Website" name="website" defaultValue={s.website ?? ""} />
               <TextField label="Physical address" name="address" defaultValue={s.address ?? ""} />
               <TextField label="P.O. Box" name="poBox" defaultValue={s.poBox ?? ""} />
@@ -46,6 +47,7 @@ export default async function SchoolSettings() {
               <CheckboxField name="showStreamPosition" label="Show stream position" defaultChecked={t.showStreamPosition !== false} />
               <CheckboxField name="showAttendance" label="Show attendance summary" defaultChecked={t.showAttendance !== false} />
               <CheckboxField name="showGradingKey" label="Show grading key" defaultChecked={t.showGradingKey !== false} />
+              <CheckboxField name="cbcOLevel" label="O-Level end-of-term reports use the competency-based format (activities out of 3 → out of 20, + EOT out of 80)" defaultChecked={t.cbcOLevel !== false} />
               <TextField label="Class teacher label" name="classTeacherLabel" defaultValue={t.classTeacherLabel ?? "Class Teacher"} required />
               <TextField label="DOS label" name="dosLabel" defaultValue={t.dosLabel ?? "Director of Studies"} required />
               <TextField label="Head label" name="headLabel" defaultValue={t.headLabel ?? "Headteacher"} required />

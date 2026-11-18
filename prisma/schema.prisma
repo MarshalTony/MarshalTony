@@ -24,6 +24,7 @@ model SchoolSetting {
   poBox             String?
   website           String?
   email             String?
+  altEmail          String?
   phone             String?
   altPhone          String?
   logoFileId        String?
@@ -225,6 +226,8 @@ model Term {
 
   exams         Exam[]
   feeStructures FeeStructure[]
+  activities    LearningActivity[]
+  competencyRemarks CompetencyRemark[]
   invoices      Invoice[]
   payments      Payment[]
   ledger        LedgerEntry[]
@@ -249,6 +252,7 @@ model SchoolClass {
   examClasses   ExamClass[]
   feeStructures FeeStructure[]
   materials     LearningMaterial[]
+  activities    LearningActivity[]
 }
 
 model Stream {
@@ -305,6 +309,8 @@ model Subject {
   assignments        Assignment[]
   materials          LearningMaterial[]
   teachingStaff      StaffSubject[]
+  activities         LearningActivity[]
+  competencyRemarks  CompetencyRemark[]
 }
 
 model SubjectCombination {
@@ -432,6 +438,7 @@ model Student {
   emergencyContactPhone String?
   unebIndexNo           String?
   linNumber             String? // Learner Identification Number
+  schoolPayCode         String? // SchoolPay payment code, printed on report cards
   status                StudentStatus @default(ACTIVE)
   exitDate              DateTime?     @db.Date
   exitReason            String?
@@ -458,6 +465,8 @@ model Student {
   medical         MedicalIncident[]
   transport       StudentTransport[]
   unebCandidates  UnebCandidate[]
+  activityScores  ActivityScore[]
+  competencyRemarks CompetencyRemark[]
 
   @@index([classId, streamId, status])
   @@index([lastName, firstName])
@@ -677,6 +686,8 @@ model GradeBand {
   maxScore Decimal      @db.Decimal(5, 2)
   points   Decimal      @db.Decimal(5, 2)
   remark   String
+  // Longer descriptor printed in the report-card grading key (competency-based curriculum)
+  description String?
 }
 
 // Ranking & aggregation rules per level — configurable, never hard-coded.
@@ -1520,4 +1531,56 @@ model UnebSubjectEntry {
   practicalNotes String?
 
   @@unique([candidateId, subjectId])
+}
+
+// ============================================================================
+// CONTINUOUS ASSESSMENT — Activities of Integration (competency-based curriculum)
+// Teachers record, per term, the chapters/themes covered in a subject for a class,
+// score each learner out of 3 per chapter, and write a competency remark.
+// On the end-of-term report: average ÷ 3 × 20 = "Out of 20"; + EOT/80 = total out of 100.
+// ============================================================================
+
+model LearningActivity {
+  id          String          @id @default(cuid())
+  termId      String
+  term        Term            @relation(fields: [termId], references: [id], onDelete: Restrict)
+  classId     String
+  schoolClass SchoolClass     @relation(fields: [classId], references: [id], onDelete: Restrict)
+  subjectId   String
+  subject     Subject         @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  title       String // chapter / theme, e.g. "Drama"
+  order       Int             @default(1)
+  createdById String
+  createdAt   DateTime        @default(now())
+  scores      ActivityScore[]
+
+  @@index([termId, classId, subjectId])
+}
+
+model ActivityScore {
+  id          String           @id @default(cuid())
+  activityId  String
+  activity    LearningActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  score       Decimal          @db.Decimal(3, 1) // 0.0 – 3.0
+  enteredById String?
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([activityId, studentId])
+}
+
+model CompetencyRemark {
+  id          String   @id @default(cuid())
+  termId      String
+  term        Term     @relation(fields: [termId], references: [id], onDelete: Restrict)
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  remark      String
+  enteredById String?
+  updatedAt   DateTime @updatedAt
+
+  @@unique([termId, studentId, subjectId])
 }

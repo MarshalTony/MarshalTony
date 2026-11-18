@@ -88,7 +88,7 @@ describe("examination results (database)", async () => {
     const bio = await prisma.subjectResult.findMany({ where: { examId: exam.id, subjectId: sub.BIO } });
     expect(bio.find((b) => b.studentId === s5.id)).toBeUndefined(); // does not take Biology
     expect(bio.find((b) => b.studentId === s6.id)?.status).toBe("MISSING");
-    expect(bio.find((b) => b.studentId === s1.id)?.grade).toBe("A"); // 40/50 = 80% on the default A–E scale
+    expect(bio.find((b) => b.studentId === s1.id)?.grade).toBe("B"); // 40/50 = 80% → B on the school's A–E scale (A from 90)
   });
 
   it("locks submitted marks; approver corrections are audited", async () => {

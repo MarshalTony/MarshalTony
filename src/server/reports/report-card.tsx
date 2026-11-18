@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { Document, Page, Text, View, Image, Footer, Letterhead, loadBranding, renderPdf, s, C } from "./pdf-kit";
 import { photoBuffers } from "./photos";
 import { loadRule, loadScales } from "../exams/results";
+import { buildCbcPages } from "./report-card-cbc";
 import { fmtDate, ordinal, studentName } from "@/lib/utils";
 
 export async function renderReportCards(examId: string, studentIds: string[], generatedBy: string) {
@@ -27,10 +28,17 @@ export async function renderReportCards(examId: string, studentIds: string[], ge
   const rules = Object.fromEntries(await Promise.all(levels.map(async (l) => [l, await loadRule(l)] as const)));
   const scales = Object.fromEntries(await Promise.all(levels.map(async (l) => [l, await loadScales(l)] as const)));
 
+  // O-Level end-of-term reports use the competency-based layout (unless switched off in Settings).
+  const cbcIds = tpl.cbcOLevel !== false && exam.examType.code === "EOT"
+    ? results.filter((r) => r.student.schoolClass.level === "O_LEVEL").map((r) => r.studentId)
+    : [];
+  const cbcPages = school && cbcIds.length ? await buildCbcPages({ exam, b, school }, cbcIds) : new Map<string, React.ReactElement>();
+
   const cell = (w: string, extra: object = {}) => ({ width: w, padding: 3, fontSize: 8, borderBottomWidth: 0.5, borderBottomColor: C.line, ...extra });
   const doc = (
     <Document title={`Report cards — ${exam.name}`} author={b.name}>
       {results.map((r) => {
+        if (cbcPages.has(r.studentId)) return cbcPages.get(r.studentId)!;
         const st = r.student;
         const subs = subjectResults.filter((x) => x.studentId === r.studentId);
         const rule = rules[st.schoolClass.level];

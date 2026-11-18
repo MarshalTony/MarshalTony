@@ -10,6 +10,7 @@ Sign in at **https://smis.bishopogez.com** with the username and temporary passw
 * **Enter marks:** open a subject/stream. Type a mark, **ABS** (absent) or **EX** (exempted). Marks above the maximum are shown in red and cannot be saved. Press *Enter* to move down. *Save marks* as often as you like.
 * **Import marks from Excel:** *Download pre-filled template* (your students are already listed), fill the Mark column, upload, check the preview and confirm. Rows with errors are listed and not imported.
 * **Submit:** when every student has a mark/ABS/EX, *Submit marks*. They are then locked. If the DOS returns them, you will see the reason and can correct and resubmit.
+* **Activities of Integration (O-Level, competency-based):** Activities (AOI) → choose stream and subject → *Add chapter / theme* (applies to the whole class) → score each learner **out of 3** per chapter (e.g. 2.5; blank = not assessed) → add a short competency remark → *Save scores & remarks*. The average and identifier (3 Outstanding, 2 Moderate, 1 Basic) update as you type. After the term closes only the DOS can change scores.
 * **Attendance:** Attendance → choose stream and date → tick P/A/L/E → *Save*.
 * **Assignments & materials:** publish assignments (with due date and attachment) and learning materials for your classes; students see them in their portal.
 * **Leave:** HR, Leave & Payroll → *Apply for leave*.

@@ -16,15 +16,15 @@ function list(items: [string, number][]) {
 
 export async function studentHistory(studentId: string) {
   const w = { studentId };
-  const [marks, results, attendance, invoices, payments, ledger, adjustments, loans, incidents, counselling, medical, transport, uneb] = await Promise.all([
-    prisma.mark.count({ where: w }), prisma.examResult.count({ where: w }), prisma.studentAttendance.count({ where: w }),
+  const [activities, marks, results, attendance, invoices, payments, ledger, adjustments, loans, incidents, counselling, medical, transport, uneb] = await Promise.all([
+    prisma.activityScore.count({ where: w }), prisma.mark.count({ where: w }), prisma.examResult.count({ where: w }), prisma.studentAttendance.count({ where: w }),
     prisma.invoice.count({ where: w }), prisma.payment.count({ where: w }), prisma.ledgerEntry.count({ where: w }),
     prisma.feeAdjustment.count({ where: w }), prisma.libraryLoan.count({ where: w }), prisma.disciplineIncident.count({ where: w }),
     prisma.counsellingRecord.count({ where: w }), prisma.medicalIncident.count({ where: w }), prisma.studentTransport.count({ where: w }),
     prisma.unebCandidate.count({ where: w }),
   ]);
   return list([
-    ["exam marks", marks], ["exam results", results], ["attendance records", attendance], ["invoices", invoices], ["payments", payments],
+    ["activity scores", activities], ["exam marks", marks], ["exam results", results], ["attendance records", attendance], ["invoices", invoices], ["payments", payments],
     ["fees transactions", ledger], ["fee adjustments", adjustments], ["library loans", loans], ["discipline records", incidents],
     ["counselling records", counselling], ["medical records", medical], ["transport allocations", transport], ["UNEB records", uneb],
   ]);

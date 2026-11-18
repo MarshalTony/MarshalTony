@@ -59,6 +59,8 @@ const students: ImportKind = {
     { key: "admissionDate", header: "Admission Date", example: "2026-02-02", note: "Defaults to today" },
     { key: "previousSchool", header: "Previous School" },
     { key: "unebIndexNo", header: "UNEB Index No" },
+    { key: "linNumber", header: "LIN Number" },
+    { key: "schoolPayCode", header: "SchoolPay Code" },
     { key: "guardianName", header: "Guardian Name" },
     { key: "guardianPhone", header: "Guardian Phone", example: "0772000000" },
     { key: "guardianRelationship", header: "Relationship", options: ["Father", "Mother", "Guardian", "Sponsor", "Other"] },
@@ -108,7 +110,7 @@ const students: ImportKind = {
         data: errors.length ? undefined : {
           admissionNo, lastName: v.lastName, firstName: v.firstName, otherNames: v.otherNames || null, gender, dateOfBirth: dob, admissionDate,
           classId: cls!.id, streamId: stream!.id, residence, combinationId: combo?.id ?? null, previousSchool: v.previousSchool || null,
-          unebIndexNo: v.unebIndexNo || null, medicalInfo: v.medicalInfo || null,
+          unebIndexNo: v.unebIndexNo || null, linNumber: v.linNumber || null, schoolPayCode: v.schoolPayCode || null, medicalInfo: v.medicalInfo || null,
           guardian: v.guardianName ? { fullName: v.guardianName, phone: v.guardianPhone, email: v.guardianEmail || null, relationship: v.guardianRelationship || "Parent" } : null,
         },
       };
