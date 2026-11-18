@@ -72,8 +72,8 @@ export async function buildCbcPages(ctx: Ctx, studentIds: string[]) {
     const subjectIds = [...new Set([...st.subjectResults.map((r) => r.subjectId), ...acts.map((a) => a.subjectId)])].filter((id) => taken.has(id));
     const subjects = subjectIds.map((id) => taken.get(id)!).sort((x, y) => x.name.localeCompare(y.name));
     const teacher = (subjectId: string) => {
-      const a = allocations.find((x) => x.subjectId === subjectId && x.streamId === streamId);
-      return a ? `${a.staff.lastName} ${a.staff.firstName}`.toUpperCase() : "";
+      const names = allocations.filter((x) => x.subjectId === subjectId && x.streamId === streamId).map((a) => `${a.staff.lastName} ${a.staff.firstName}`.toUpperCase());
+      return [...new Set(names)].join(" / ");
     };
     const comment = st.reportComments[0];
     const name = [st.lastName, st.firstName, st.otherNames].filter(Boolean).join(" ").toUpperCase();

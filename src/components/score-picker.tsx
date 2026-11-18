@@ -18,7 +18,7 @@ export function ScorePicker({ fields }: { fields: PickerField[] }) {
     router.push(`${pathname}?${q.toString()}`);
   }
   return (
-    <div className="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-5">
       {fields.map((f, i) => (
         <div key={f.name} className="space-y-1">
           <Label htmlFor={`pick-${f.name}`}>{i + 1}. {f.label}</Label>
