@@ -1,4 +1,5 @@
 import "server-only";
+import { marksApprovalRequired } from "./approval-setting";
 import type { Level } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
@@ -95,7 +96,9 @@ export async function generateResults(examId: string, opts: { includeUnapproved?
   const exam = await prisma.exam.findUniqueOrThrow({ where: { id: examId }, include: { term: true, classes: { include: { schoolClass: true } }, subjects: { include: { subject: true } } } });
   if (!exam.classes.length) throw new UserError("Add classes to the exam first.");
   if (!exam.subjects.length) throw new UserError("Configure the exam subjects first.");
-  const { marks, maxOverride } = await effectiveMarks(examId, !!opts.includeUnapproved);
+  // Without DOS approval (the default), every saved mark counts.
+  const includeUnapproved = !!opts.includeUnapproved || !(await marksApprovalRequired());
+  const { marks, maxOverride } = await effectiveMarks(examId, includeUnapproved);
   const yearId = exam.term.academicYearId;
   const summary: { classId: string; students: number; ranked: number }[] = [];
 

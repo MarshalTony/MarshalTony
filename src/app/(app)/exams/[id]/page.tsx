@@ -143,6 +143,12 @@ export default async function ExamDetail({ params }: { params: Promise<{ id: str
           })}
         </div>
         <div className="space-y-5">
+          {!readiness.approvalRequired ? (
+            <Card>
+              <CardHeader><CardTitle>Marks</CardTitle></CardHeader>
+              <CardContent className="text-sm text-slate-600">{exam._count.marks} marks entered. DOS approval is switched off: saved marks count straight away. Close the examination to stop marks entry.</CardContent>
+            </Card>
+          ) : (
           <Card>
             <CardHeader><CardTitle>Marks approval</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
@@ -150,6 +156,7 @@ export default async function ExamDetail({ params }: { params: Promise<{ id: str
               {approve && submitted > 0 && <ConfirmAction action={approveAllSubmitted} fields={{ examId: exam.id }} label={`Approve all ${submitted} submitted`} variant="success" confirm="Approve every submitted mark sheet?" />}
             </CardContent>
           </Card>
+          )}
           {manage && (
             <Card>
               <CardHeader><CardTitle>Results</CardTitle></CardHeader>
@@ -158,7 +165,7 @@ export default async function ExamDetail({ params }: { params: Promise<{ id: str
                 <ResultsReadinessAlert r={readiness} />
                 <ActionForm action={generateResultsAction} submitLabel="Generate results">
                   <input type="hidden" name="examId" value={exam.id} />
-                  <CheckboxField name="includeUnapproved" label="Include marks not yet approved (provisional)" />
+                  {readiness.approvalRequired && <CheckboxField name="includeUnapproved" label="Include marks not yet approved (provisional)" />}
                 </ActionForm>
               </CardContent>
             </Card>

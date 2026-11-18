@@ -11,7 +11,7 @@ Sign in at **https://smis.bishopogez.com** with the username and temporary passw
   * **End of term scores:** the sheet for the end-of-term examination the DOS has opened for that class and term (out of 80 for O-Level). Type a mark, **ABS** (absent) or **EX** (exempted). Marks above the maximum are shown in red and cannot be saved. Press *Enter* to move down. *Save marks* as often as you like.
 * **Other examinations** (beginning / mid term): Dashboard → *My classes & marks entry*, or Examinations → the exam → your subject and stream. The sheet works the same way.
 * **Import marks from Excel:** *Download pre-filled template* (your students are already listed), fill the Mark column, upload, check the preview and confirm. Rows with errors are listed and not imported.
-* **Submit:** when every student has a mark/ABS/EX, *Submit marks*. They are then locked. If the DOS returns them, you will see the reason and can correct and resubmit.
+* **No approval step (default):** saved marks count straight away and appear on report cards; you can keep correcting them until the DOS closes the examination. *If the school switches DOS approval on* (Settings), you instead *Submit marks* when every student has a mark/ABS/EX; they are then locked until the DOS approves or returns them with a reason.
 * **Attendance:** Attendance → choose stream and date → tick P/A/L/E → *Save*.
 * **Assignments & materials:** publish assignments (with due date and attachment) and learning materials for your classes; students see them in their portal.
 * **Leave:** HR, Leave & Payroll → *Apply for leave*.

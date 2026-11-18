@@ -1,4 +1,5 @@
 import "server-only";
+import { marksApprovalRequired } from "./approval-setting";
 import type { Tx } from "@/lib/db";
 import { validateScore } from "@/lib/exams/engine";
 import { UserError } from "../action";
@@ -48,7 +49,7 @@ export async function saveMarks(
     throw new UserError("You are not allocated to teach this subject in this stream.");
 
   const sub = await tx.markSubmission.findUnique({ where: { examId_streamId_subjectId: { examId, streamId, subjectId } } });
-  if (sub && (sub.status === "SUBMITTED" || sub.status === "APPROVED") && !args.correction)
+  if (sub && (sub.status === "SUBMITTED" || sub.status === "APPROVED") && !args.correction && (await marksApprovalRequired()))
     throw new UserError(`Marks are ${sub.status.toLowerCase()} and locked. Ask the DOS to return them for correction.`);
   if (args.correction && !user.permissions.has("marks.approve")) throw new UserError("Only approvers can correct submitted marks.");
   if (args.correction && !args.reason) throw new UserError("Give a reason for the correction.");

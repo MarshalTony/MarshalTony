@@ -28,7 +28,7 @@ export function Badge({ color = "default", className, ...props }: React.HTMLAttr
 
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, keyof typeof badgeColors> = {
-    ACTIVE: "green", APPROVED: "green", PAID: "green", PUBLISHED: "green", SENT: "green", PRESENT: "green", REGISTERED: "green", RESOLVED: "green", CONFIRMED: "green", RECEIVED: "green", COMMITTED: "green",
+    ACTIVE: "green", APPROVED: "green", PAID: "green", PUBLISHED: "green", SENT: "green", PRESENT: "green", REGISTERED: "green", RESOLVED: "green", CONFIRMED: "green", RECEIVED: "green", COMMITTED: "green", COMPLETE: "green", IN_PROGRESS: "amber", MARKS_SAVED: "blue",
     PENDING: "amber", SUBMITTED: "amber", OPEN: "blue", DRAFT: "default", LATE: "amber", QUEUED: "amber", ON_LEAVE: "amber", SUSPENDED: "amber", PREVIEW: "amber",
     REJECTED: "red", VOIDED: "red", REVERSED: "red", FAILED: "red", ABSENT: "red", WITHDRAWN: "red", EXPELLED: "red", CANCELLED: "red", EXITED: "red", NOT_CONFIGURED: "red",
     CLOSED: "purple", GRADUATED: "purple", TRANSFERRED: "purple", EXCUSED: "blue",

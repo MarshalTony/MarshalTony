@@ -1,8 +1,11 @@
 import "server-only";
 import { prisma } from "@/lib/db";
+import { marksApprovalRequired } from "./approval-setting";
 
 export type ResultsReadiness = {
   generatedAt: Date | null;
+  /** DOS approval is switched on in Settings. */
+  approvalRequired: boolean;
   /** Marks were saved after results were last generated. */
   stale: boolean;
   lastMarkAt: Date | null;
@@ -14,7 +17,7 @@ export type ResultsReadiness = {
 
 /** Why an exam's results (and so its report cards) may not show the marks teachers have entered. */
 export async function resultsReadiness(examId: string): Promise<ResultsReadiness> {
-  const [exam, last, lastGen, subs] = await Promise.all([
+  const [exam, last, lastGen, subs, approvalRequired] = await Promise.all([
     prisma.exam.findUniqueOrThrow({ where: { id: examId }, select: { resultsGeneratedAt: true, isComposite: true } }),
     prisma.mark.aggregate({ where: { examId }, _max: { updatedAt: true } }),
     prisma.auditLog.findFirst({ where: { entity: "Exam", entityId: examId, action: "GENERATE_RESULTS" }, orderBy: { createdAt: "desc" }, select: { details: true } }),
@@ -23,14 +26,16 @@ export async function resultsReadiness(examId: string): Promise<ResultsReadiness
       include: { stream: { include: { schoolClass: true } }, subject: true },
       orderBy: [{ stream: { schoolClass: { order: "asc" } } }, { stream: { name: "asc" } }, { subject: { name: "asc" } }],
     }),
+    marksApprovalRequired(),
   ]);
   const lastMarkAt = last._max.updatedAt ?? null;
   const provisional = !!(lastGen?.details as { includeUnapproved?: boolean } | null)?.includeUnapproved;
   return {
     generatedAt: exam.resultsGeneratedAt,
+    approvalRequired,
     lastMarkAt,
     stale: !exam.isComposite && !!lastMarkAt && (!exam.resultsGeneratedAt || lastMarkAt > exam.resultsGeneratedAt),
     provisional,
-    pending: subs.map((s) => ({ stream: `${s.stream.schoolClass.code} ${s.stream.name}`, subject: s.subject.name, status: s.status })),
+    pending: !approvalRequired ? [] : subs.map((s) => ({ stream: `${s.stream.schoolClass.code} ${s.stream.name}`, subject: s.subject.name, status: s.status })),
   };
 }

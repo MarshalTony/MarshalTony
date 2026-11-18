@@ -3,6 +3,7 @@ import { getCurrentUser, can } from "@/server/auth";
 import { renderReportCards } from "@/server/reports/report-card";
 import { pdfResponse } from "@/server/http";
 import { audit } from "@/server/audit";
+import { ensureFreshResults } from "@/server/exams/approval";
 
 export const maxDuration = 60;
 
@@ -25,6 +26,8 @@ export async function GET(req: Request) {
   if (!exam) return new Response("Not found", { status: 404 });
 
   const staff = can(user, "reportcards.generate", "results.view");
+  // Staff printing: include marks saved since results were last generated (when DOS approval is off).
+  if (staff) await ensureFreshResults(examId);
   let ids: string[] = [];
   if (studentId) {
     if (!staff) {

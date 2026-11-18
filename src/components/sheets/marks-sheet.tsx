@@ -3,6 +3,7 @@ import { Download } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { can, type CurrentUser } from "@/server/auth";
 import { canEnterMarks } from "@/server/exams/marks";
+import { marksApprovalRequired } from "@/server/exams/approval-setting";
 import { saveMarksAction, submitMarks } from "@/server/actions/exams";
 import { uploadImport } from "@/server/actions/imports";
 import { MarksGrid } from "@/components/marks-grid";
@@ -32,15 +33,19 @@ export async function MarksSheet({
   const allowed = await canEnterMarks(prisma, user, streamId, subjectId, exam.term.academicYearId);
   const approver = can(user, "marks.approve");
   if (!allowed && !approver) return <Alert tone="error">You are not allocated to teach {subject.name} in {stream.schoolClass.code} {stream.name}.</Alert>;
-  const sub = await prisma.markSubmission.findUnique({ where: { examId_streamId_subjectId: { examId, streamId, subjectId } } });
+  const [sub, needsApproval] = await Promise.all([
+    prisma.markSubmission.findUnique({ where: { examId_streamId_subjectId: { examId, streamId, subjectId } } }),
+    marksApprovalRequired(),
+  ]);
   const students = await prisma.student.findMany({
     where: { streamId, OR: [{ status: "ACTIVE" }, { marks: { some: { examId, subjectId } } }], subjects: { some: { subjectId, academicYearId: exam.term.academicYearId } } },
     include: { marks: { where: { examId, subjectId } } },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
-  const locked = sub?.status === "SUBMITTED" || sub?.status === "APPROVED";
+  const locked = needsApproval && (sub?.status === "SUBMITTED" || sub?.status === "APPROVED");
   const examOpen = exam.status === "OPEN";
   const correction = approver && correctionRequested && (locked || exam.status === "CLOSED" || exam.status === "PUBLISHED");
+  const entered = students.filter((s) => s.marks.length).length;
   const editable = !exam.isComposite && ((examOpen && !locked && allowed) || correction);
   const rows = students.map((s) => {
     const m = s.marks[0];
@@ -58,10 +63,10 @@ export async function MarksSheet({
             <h2 className="text-lg font-semibold">{subject.name} — {stream.schoolClass.code} {stream.name}</h2>
             <p className="text-sm text-slate-600">{exam.name} · maximum {Number(es.maxMarks)} marks · {students.length} students take this subject</p>
           </div>
-          <StatusBadge status={sub?.status ?? "NOT STARTED"} />
+          {needsApproval ? <StatusBadge status={sub?.status ?? "NOT STARTED"} /> : <StatusBadge status={entered === 0 ? "NOT STARTED" : entered < students.length ? "IN_PROGRESS" : "COMPLETE"} />}
         </div>
       ) : null}
-      {sub?.status === "REJECTED" && <Alert tone="warn" className="mb-3">Returned for correction: {sub.reviewNote}</Alert>}
+      {needsApproval && sub?.status === "REJECTED" && <Alert tone="warn" className="mb-3">Returned for correction: {sub.reviewNote}</Alert>}
       {!examOpen && !correction && <Alert className="mb-3">Marks entry is {exam.status === "DRAFT" ? "not open yet — the Director of Studies must open it" : "closed"} for this examination.</Alert>}
       {locked && !correction && <Alert className="mb-3">These marks are {sub!.status.toLowerCase()} and locked.{approver && <> <Link className="underline" href={`${exitHref}${sep}correct=1`}>Correct marks</Link></>}</Alert>}
       {correction && <Alert tone="warn" className="mb-3">Correction mode: every change is recorded with your reason. <Link className="underline" href={exitHref}>Exit</Link></Alert>}
@@ -77,7 +82,15 @@ export async function MarksSheet({
           />
         </div>
         <div className="space-y-5">
-          {editable && !correction && (
+          {editable && !correction && !needsApproval && (
+            <Card>
+              <CardHeader><CardTitle>Saved marks count straight away</CardTitle></CardHeader>
+              <CardContent className="text-sm text-slate-600">
+                Every mark you save goes onto the report cards. You can keep correcting marks until the Director of Studies closes this examination.
+              </CardContent>
+            </Card>
+          )}
+          {editable && !correction && needsApproval && (
             <Card>
               <CardHeader><CardTitle>Submit for approval</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm text-slate-600">

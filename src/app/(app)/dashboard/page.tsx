@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { marksApprovalRequired } from "@/server/exams/approval-setting";
 import { Users, Briefcase, Wallet, AlertTriangle, CheckCircle2, Receipt, ClipboardList, CalendarCheck } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
@@ -135,6 +136,7 @@ async function AcademicSection({ termId }: { termId?: string }) {
 
 async function TeacherSection({ staffId, termId }: { staffId: string; termId?: string }) {
   const dow = ((new Date().getDay() + 6) % 7) + 1;
+  const needsApproval = await marksApprovalRequired();
   const [allocs, classTeacherOf, slots, openExams] = await Promise.all([
     prisma.teacherAllocation.findMany({ where: { staffId, academicYear: { isCurrent: true } }, include: { subject: true, stream: { include: { schoolClass: true } } }, orderBy: [{ stream: { schoolClass: { order: "asc" } } }] }),
     prisma.stream.findMany({ where: { classTeacherId: staffId }, include: { schoolClass: true, _count: { select: { students: { where: { status: "ACTIVE" } } } } } }),
@@ -153,7 +155,7 @@ async function TeacherSection({ staffId, termId }: { staffId: string; termId?: s
               {allocs.map((a) => (
                 <TR key={a.id}>
                   <TD>{a.subject.name}</TD><TD>{a.stream.schoolClass.code} {a.stream.name}</TD>
-                  {openExams.map((e) => <TD key={e.id}><Link href={`/exams/${e.id}/marks?streamId=${a.streamId}&subjectId=${a.subjectId}`}><StatusBadge status={e.submissions.find((s) => s.streamId === a.streamId && s.subjectId === a.subjectId)?.status ?? "NOT STARTED"} /></Link></TD>)}
+                  {openExams.map((e) => <TD key={e.id}><Link href={`/exams/${e.id}/marks?streamId=${a.streamId}&subjectId=${a.subjectId}`}>{(() => { const st = e.submissions.find((s) => s.streamId === a.streamId && s.subjectId === a.subjectId)?.status; return <StatusBadge status={!st ? "NOT STARTED" : needsApproval ? st : "MARKS_SAVED"} />; })()}</Link></TD>)}
                 </TR>
               ))}
               {allocs.length === 0 && <TR><TD colSpan={2} className="text-slate-500">No subject allocations this year.</TD></TR>}

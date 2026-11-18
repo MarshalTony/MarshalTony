@@ -7,6 +7,7 @@ import { Table, THead, TH, TR, TD, sp, type SP } from "@/components/data-table";
 import { FileText } from "lucide-react";
 import { ordinal, studentName } from "@/lib/utils";
 import { resultsReadiness } from "@/server/exams/readiness";
+import { ensureFreshResults } from "@/server/exams/approval";
 import { ResultsReadinessAlert } from "@/components/results-readiness";
 
 export const metadata = { title: "Report cards" };
@@ -15,12 +16,14 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
   await requirePage("reportcards.generate");
   const params = await searchParams;
   const exams = await prisma.exam.findMany({
-    where: { resultsGeneratedAt: { not: null } }, include: { term: { include: { academicYear: true } }, classes: { include: { schoolClass: { include: { streams: { orderBy: { name: "asc" } } } } } } },
+    where: { OR: [{ resultsGeneratedAt: { not: null } }, { isComposite: false, marks: { some: {} } }] }, include: { term: { include: { academicYear: true } }, classes: { include: { schoolClass: { include: { streams: { orderBy: { name: "asc" } } } } } } },
     orderBy: [{ term: { startDate: "desc" } }, { createdAt: "desc" }],
   });
   const exam = exams.find((e) => e.id === sp(params, "examId")) ?? exams[0];
   const streams = exam ? exam.classes.flatMap((c) => c.schoolClass.streams.map((s) => ({ id: s.id, label: `${c.schoolClass.code} ${s.name}` }))) : [];
   const streamId = sp(params, "streamId");
+  // Without DOS approval, bring results up to date with the latest saved marks before listing them.
+  if (exam) await ensureFreshResults(exam.id).catch(() => false);
   const readiness = exam ? await resultsReadiness(exam.id) : null;
   const results = exam && streamId ? await prisma.examResult.findMany({ where: { examId: exam.id, streamId }, include: { student: true }, orderBy: { streamPosition: { sort: "asc", nulls: "last" } } }) : [];
   return (

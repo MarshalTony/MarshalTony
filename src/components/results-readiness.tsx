@@ -14,7 +14,7 @@ export function ResultsReadinessAlert({ r, examHref }: { r: ResultsReadiness; ex
     <Alert tone="warn" className="mb-3 space-y-1">
       <p className="font-medium">Report cards may not show all end-of-term marks yet.</p>
       {r.stale && (
-        <p>Marks were entered or changed {r.lastMarkAt ? `on ${fmtDateTime(r.lastMarkAt)} ` : ""}after results were {r.generatedAt ? `last generated (${fmtDateTime(r.generatedAt)})` : "generated"}. <b>Generate results</b> again to include them.</p>
+        <p>Marks were entered or changed {r.lastMarkAt ? `on ${fmtDateTime(r.lastMarkAt)} ` : ""}after results were {r.generatedAt ? `last generated (${fmtDateTime(r.generatedAt)})` : "generated"}. <b>Generate results</b> again to include them{r.approvalRequired ? "" : " — printing report cards also does this automatically"}.</p>
       )}
       {pending.length > 0 && (
         <>

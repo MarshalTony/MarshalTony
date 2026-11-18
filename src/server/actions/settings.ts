@@ -33,7 +33,7 @@ export const saveReportTemplate = action(
     permission: "settings.manage",
     schema: z.object({
       showPhoto: zs.bool(), showSubjectPositions: zs.bool(), showStreamPosition: zs.bool(), showClassPosition: zs.bool(),
-      showAttendance: zs.bool(), showGradingKey: zs.bool(), cbcOLevel: zs.bool(), classTeacherLabel: zs.str(60), dosLabel: zs.str(60), headLabel: zs.str(60),
+      showAttendance: zs.bool(), showGradingKey: zs.bool(), cbcOLevel: zs.bool(), requireMarksApproval: zs.bool(), classTeacherLabel: zs.str(60), dosLabel: zs.str(60), headLabel: zs.str(60),
     }),
   },
   async (input, user) => {

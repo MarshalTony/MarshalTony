@@ -1,11 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { saveMarks } from "@/server/exams/marks";
 import { generateResults } from "@/server/exams/results";
 import type { CurrentUser } from "@/server/auth";
 import { adminUser, currentYearAndTerm, student, testClass } from "./helpers";
 
+/** Sets the school-wide "marks need DOS approval" switch (Settings → School profile). */
+async function setApproval(on: boolean) {
+  const s = await prisma.schoolSetting.findUniqueOrThrow({ where: { id: 1 } });
+  await prisma.schoolSetting.update({ where: { id: 1 }, data: { reportTemplate: { ...((s.reportTemplate as object) ?? {}), requireMarksApproval: on } } });
+}
+
 describe("examination results (database)", async () => {
+  beforeAll(() => setApproval(true));
+  afterAll(() => setApproval(false));
   const admin = await adminUser();
   const { year, term } = await currentYearAndTerm();
   const cls = await testClass(2);
@@ -58,7 +66,7 @@ describe("examination results (database)", async () => {
     await save(B.id, "MTC", [P(s3.id, 80), { studentId: s4.id, score: null, status: "ABSENT" }, P(s5.id, 70)]);
     await save(B.id, "BIO", [P(s3.id, 40), P(s4.id, 30)]);
 
-    // Unapproved marks are not used by default
+    // With approval switched on, unapproved marks are not used
     await generateResults(exam.id);
     const none = await prisma.examResult.findMany({ where: { examId: exam.id } });
     expect(none.every((r) => r.subjectsCount === 0)).toBe(true);
@@ -140,5 +148,45 @@ describe("results after promotion use the exam-year class", async () => {
     expect(r.classId).toBe(from.id);
     expect(r.streamId).toBe(from.streams[0].id);
     expect(Number(r.average)).toBe(77);
+  });
+});
+
+describe("marks without DOS approval (the default)", async () => {
+  const admin = await adminUser();
+  const { year, term } = await currentYearAndTerm();
+  const cls = await testClass(6);
+  const [A] = cls.streams;
+  const eng = await prisma.subject.findUniqueOrThrow({ where: { code: "ENG" } });
+  const type = await prisma.examType.findUniqueOrThrow({ where: { code: "EOT" } });
+  const s1 = await student(cls.id, A.id);
+  await prisma.studentSubject.create({ data: { studentId: s1.id, subjectId: eng.id, academicYearId: year.id } });
+  const exam = await prisma.exam.create({
+    data: { name: `No-approval EOT ${cls.code}`, examTypeId: type.id, termId: term.id, status: "OPEN", classes: { create: [{ classId: cls.id }] }, subjects: { create: [{ classId: cls.id, subjectId: eng.id, maxMarks: 80 }] } },
+  });
+  const save = (score: number) => prisma.$transaction((tx) => saveMarks(tx, { examId: exam.id, streamId: A.id, subjectId: eng.id, entries: [{ studentId: s1.id, score, status: "PRESENT" }], clear: [], user: admin }));
+
+  it("counts saved marks straight away and refreshes stale results for report cards", async () => {
+    await setApproval(false);
+    await save(60);
+    const { ensureFreshResults } = await import("@/server/exams/approval");
+    expect(await ensureFreshResults(exam.id)).toBe(true); // never generated → generates
+    const r = await prisma.subjectResult.findFirstOrThrow({ where: { examId: exam.id, studentId: s1.id, subjectId: eng.id } });
+    expect(Number(r.percentage)).toBe(75); // 60/80
+    expect(await ensureFreshResults(exam.id)).toBe(false); // already up to date
+    await new Promise((res) => setTimeout(res, 20));
+    await save(72);
+    expect(await ensureFreshResults(exam.id)).toBe(true);
+    const r2 = await prisma.subjectResult.findFirstOrThrow({ where: { examId: exam.id, studentId: s1.id, subjectId: eng.id } });
+    expect(Number(r2.percentage)).toBe(90);
+  });
+
+  it("does not lock a mark sheet that was submitted earlier", async () => {
+    await prisma.markSubmission.update({ where: { examId_streamId_subjectId: { examId: exam.id, streamId: A.id, subjectId: eng.id } }, data: { status: "SUBMITTED" } });
+    expect(await save(70)).toBe(1);
+  });
+
+  it("closing the exam stops marks entry", async () => {
+    await prisma.exam.update({ where: { id: exam.id }, data: { status: "CLOSED" } });
+    await expect(save(71)).rejects.toThrow(/closed/);
   });
 });
