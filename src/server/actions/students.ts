@@ -383,3 +383,34 @@ export const bulkUpdateStudents = action(
     return { ok: true, message: n ? `Saved changes for ${n} student${n === 1 ? "" : "s"}.` : "No changes to save." };
   },
 );
+
+/** Students → Photos: set one student's passport photo (already resized in the browser). The replaced photo file is removed. */
+export const setStudentPhoto = action(
+  { permission: "students.manage", schema: z.object({ id: zs.id() }) },
+  async ({ id }, user, fd) => {
+    const photo = fileFrom(fd, "photo");
+    if (!photo) throw new UserError("Choose a photo.");
+    const before = await prisma.student.findUniqueOrThrow({ where: { id }, select: { photoFileId: true, admissionNo: true } });
+    const saved = await saveUpload(photo, "STUDENT_PHOTO", user.id, { imagesOnly: true });
+    await prisma.$transaction(async (tx) => {
+      await tx.student.update({ where: { id }, data: { photoFileId: saved.id } });
+      if (before.photoFileId) await tx.storedFile.deleteMany({ where: { id: before.photoFileId } });
+      await audit(user.id, "SET_PHOTO", "Student", id, { replaced: !!before.photoFileId }, tx);
+    });
+    return { ok: true, message: `Photo saved for ${before.admissionNo}.`, data: { fileId: saved.id } };
+  },
+);
+
+export const removeStudentPhoto = action(
+  { permission: "students.manage", schema: z.object({ id: zs.id() }) },
+  async ({ id }, user) => {
+    await prisma.$transaction(async (tx) => {
+      const s = await tx.student.findUniqueOrThrow({ where: { id }, select: { photoFileId: true } });
+      if (!s.photoFileId) return;
+      await tx.student.update({ where: { id }, data: { photoFileId: null } });
+      await tx.storedFile.deleteMany({ where: { id: s.photoFileId } });
+      await audit(user.id, "REMOVE_PHOTO", "Student", id, {}, tx);
+    });
+    return { ok: true, message: "Photo removed." };
+  },
+);

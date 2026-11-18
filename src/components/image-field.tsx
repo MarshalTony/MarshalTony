@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Field } from "./forms";
 import { Input } from "./ui/input";
+import { resizeImage } from "@/lib/resize-image";
 
 /**
  * Image file input that resizes in the browser before upload: smaller uploads on slow
@@ -25,27 +26,7 @@ export function ImageField({
     const file = input.files?.[0];
     if (!file) return;
     try {
-      const bitmap = await createImageBitmap(file);
-      const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
-      const w = Math.round(bitmap.width * scale);
-      const h = Math.round(bitmap.height * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d")!;
-      const png = keepPng && file.type === "image/png";
-      if (!png) {
-        ctx.fillStyle = "#ffffff"; // JPEG has no transparency
-        ctx.fillRect(0, 0, w, h);
-      }
-      ctx.drawImage(bitmap, 0, 0, w, h);
-      bitmap.close();
-      const type = png ? "image/png" : "image/jpeg";
-      const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, type, 0.85));
-      if (!blob) throw new Error("encode failed");
-      // Keep the original if it is already a smaller supported image
-      const useOriginal = scale === 1 && file.size <= blob.size && /^image\/(jpeg|png|webp)$/.test(file.type);
-      const out = useOriginal ? file : new File([blob], file.name.replace(/\.\w+$/, "") + (png ? ".png" : ".jpg"), { type });
+      const { file: out, width: w, height: h } = await resizeImage(file, maxSize, keepPng);
       const dt = new DataTransfer();
       dt.items.add(out);
       input.files = dt.files;

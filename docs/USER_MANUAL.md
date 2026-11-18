@@ -37,6 +37,8 @@ Set up examinations, approve or return mark sheets, correct approved marks (with
 
 ## Registrar
 
+**Photos (Students → Photos):** choose a class (and optionally a stream; *Missing photos only* shows who still needs one) — each student appears as a card. Click a card to choose a photo (on a phone you can take it with the camera); it is resized and saved immediately. Hover a photo to change or remove it. For photo day, name each file with the admission number (e.g. `BOHS-2026-0021.jpg`) and use *Upload many*: each file goes to the matching student; unmatched file names are listed.
+
 **Bulk edit (Students → Bulk edit):** choose a class (and optionally a stream) to edit all its students in one table — names, sex, stream, day/boarding, LIN, SchoolPay code, A-Level combination and **elective subjects** (one tick column per elective; click a subject heading to tick it for everyone, or for the learners you ticked). Tick learners and use *Apply to ticked* to set the stream, day/boarding or sex for many at once. Changed rows turn yellow; press *Save* to keep them or *Undo changes*. Stream changes also move the student's enrolment for the year; every change is in the audit log.
 
 Register students (or import), print admission forms and ID cards, add parents/guardians and create parent portal accounts, record transfers and withdrawals, manage UNEB candidate records and transport allocations.
