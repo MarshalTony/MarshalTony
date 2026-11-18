@@ -231,3 +231,17 @@ describe("composite exam formula", () => {
     expect(compositePercentage([{ weight: 1, mark: undefined, maxMarks: 100 }])).toBeUndefined();
   });
 });
+
+import { parseDate } from "@/server/imports/excel";
+describe("import date parsing", () => {
+  it("accepts ISO and Ugandan day-first dates", () => {
+    expect(parseDate("2011-05-12")!.toISOString().slice(0, 10)).toBe("2011-05-12");
+    expect(parseDate("12/05/2011")!.toISOString().slice(0, 10)).toBe("2011-05-12");
+  });
+  it("rejects impossible dates instead of rolling them over", () => {
+    expect(parseDate("31/31/2020")).toBeNull();
+    expect(parseDate("30/02/2024")).toBeNull();
+    expect(parseDate("2023-02-29")).toBeNull();
+    expect(parseDate("29/02/2024")!.toISOString().slice(0, 10)).toBe("2024-02-29");
+  });
+});

@@ -36,7 +36,7 @@ export default async function ImportsPage({ searchParams }: { searchParams: Prom
                   <SelectField label="Import type" name="kind" defaultValue={selected} options={kinds.map(([k, d]) => ({ value: k, label: d.title }))} required />
                   <TextField label="Excel file (.xlsx)" name="file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required />
                 </ActionForm>
-                <p className="mt-3 text-xs text-slate-500">Marks are imported from each exam's marks-entry page, with a template pre-filled with the right students.</p>
+                <p className="mt-3 text-xs text-slate-500">Marks are imported from each exam&apos;s marks-entry page, with a template pre-filled with the right students.</p>
               </>
             )}
           </CardContent>

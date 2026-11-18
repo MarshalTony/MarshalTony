@@ -7,7 +7,7 @@ import { classTree, streamOptions, classOptions } from "@/server/queries/lookups
 import { Button } from "@/components/ui/button";
 import { PageHeader, StatusBadge } from "@/components/ui/card";
 import { FilterBar } from "@/components/filters";
-import { Pagination, SortTH, Table, THead, TH, TR, TD, hrefWith, pageParams, sortParams, sp, type SP } from "@/components/data-table";
+import { Pagination, SortTH, Table, THead, TH, TR, TD, hrefWith, pageParams, sortParams, type SP } from "@/components/data-table";
 import { studentName } from "@/lib/utils";
 import { studentWhere } from "@/server/queries/students";
 

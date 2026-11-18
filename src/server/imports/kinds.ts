@@ -114,7 +114,7 @@ const students: ImportKind = {
       };
     });
   },
-  async commit(tx, rows, _ctx, user) {
+  async commit(tx, rows) {
     const year = await tx.academicYear.findFirst({ where: { isCurrent: true } });
     if (!year) throw new Error("Set a current academic year first.");
     for (const r of rows) {

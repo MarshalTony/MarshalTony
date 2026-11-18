@@ -94,13 +94,17 @@ export async function buildErrorReport(columns: Column[], rows: { rowNumber: num
 export function parseDate(s: string): Date | null {
   if (!s) return null;
   let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (m) return valid(new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])));
+  if (m) return ymd(+m[1], +m[2], +m[3]);
   m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/); // dd/mm/yyyy (Uganda)
-  if (m) return valid(new Date(Date.UTC(+m[3], +m[2] - 1, +m[1])));
+  if (m) return ymd(+m[3], +m[2], +m[1]);
   return null;
 }
-function valid(d: Date) {
-  return Number.isNaN(d.getTime()) ? null : d;
+/** Rejects impossible dates such as 31/31/2020 or 30/02/2024 (JS would silently roll them over). */
+function ymd(y: number, mo: number, d: number) {
+  const date = new Date(Date.UTC(y, mo - 1, d));
+  if (Number.isNaN(date.getTime()) || date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) return null;
+  if (y < 1900 || y > 2100) return null;
+  return date;
 }
 export function parseGender(s: string): "MALE" | "FEMALE" | null {
   const v = s.trim().toUpperCase();
