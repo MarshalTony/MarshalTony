@@ -300,3 +300,86 @@ export const deleteStudent = action(
     return { ok: true, message, ...(fromProfile ? { serverRedirect: "/students?deleted=1" } : {}) };
   },
 );
+
+const bulkRow = z.object({
+  id: zs.id(),
+  lastName: z.string().trim().min(1, "Last name is required").max(60),
+  firstName: z.string().trim().min(1, "First name is required").max(60),
+  otherNames: z.string().trim().max(60).optional().default(""),
+  gender: z.enum(["MALE", "FEMALE"]),
+  streamId: zs.id(),
+  residence: z.enum(["DAY", "BOARDING"]),
+  linNumber: z.string().trim().max(30).optional().default(""),
+  schoolPayCode: z.string().trim().max(30).optional().default(""),
+  combinationId: z.string().max(40).optional().default(""),
+  electives: z.array(z.string().max(40)).max(60),
+});
+
+/**
+ * Bulk edit of one class (Students → Bulk edit): names, gender, stream, day/boarding, LIN, SchoolPay code,
+ * A-Level combination and elective subjects for the current year. Only the rows the page marks as changed are sent.
+ * Compulsory subjects are never touched. Stream changes also update the current-year enrollment (as Transfer stream).
+ */
+export const bulkUpdateStudents = action(
+  { permission: "students.manage", revalidate: "/students", schema: z.object({ classId: zs.id(), rows: z.string().max(2_000_000) }) },
+  async ({ classId, rows: raw }, user) => {
+    let parsed: unknown;
+    try { parsed = JSON.parse(raw); } catch { throw new UserError("Could not read the changes. Reload the page and try again."); }
+    const rows = z.array(bulkRow).max(1000).parse(parsed);
+    if (!rows.length) return { ok: true, message: "No changes to save." };
+    const n = await prisma.$transaction(async (tx) => {
+      const year = await currentYearOrThrow(tx);
+      const cls = await tx.schoolClass.findUniqueOrThrow({ where: { id: classId }, include: { streams: true } });
+      const streamIds = new Set(cls.streams.map((s) => s.id));
+      // Only non-compulsory subjects of this level can be ticked here.
+      const electiveIds = new Set((await tx.subject.findMany({ where: { level: cls.level, category: { not: "COMPULSORY" } }, select: { id: true } })).map((s) => s.id));
+      const comboIds = new Set((await tx.subjectCombination.findMany({ select: { id: true } })).map((c) => c.id));
+      const before = new Map((await tx.student.findMany({
+        where: { id: { in: rows.map((r) => r.id) } },
+        include: { subjects: { where: { academicYearId: year.id }, select: { subjectId: true } } },
+      })).map((s) => [s.id, s]));
+      let changedStudents = 0;
+      for (const r of rows) {
+        const b = before.get(r.id);
+        const who = `${r.lastName} ${r.firstName}`;
+        if (!b || b.classId !== classId) throw new UserError(`${who} is not in ${cls.name}. Reload the page.`);
+        if (!streamIds.has(r.streamId)) throw new UserError(`${who}: choose a stream of ${cls.name}.`);
+        const bad = r.electives.find((id) => !electiveIds.has(id));
+        if (bad) throw new UserError(`${who}: one of the ticked subjects is not an elective for ${cls.name}.`);
+        const combinationId = cls.level === "A_LEVEL" ? (r.combinationId || null) : b.combinationId;
+        if (combinationId && combinationId !== b.combinationId && !comboIds.has(combinationId)) throw new UserError(`${who}: unknown combination.`);
+
+        const data = {
+          lastName: r.lastName, firstName: r.firstName, otherNames: r.otherNames || null, gender: r.gender, residence: r.residence,
+          linNumber: r.linNumber || null, schoolPayCode: r.schoolPayCode || null, combinationId,
+        };
+        const changed = (Object.keys(data) as (keyof typeof data)[]).filter((k) => String(b[k] ?? "") !== String(data[k] ?? ""));
+        const streamChanged = r.streamId !== b.streamId;
+        const had = new Set(b.subjects.map((s) => s.subjectId).filter((id) => electiveIds.has(id)));
+        const want = new Set(r.electives);
+        const add = [...want].filter((id) => !had.has(id));
+        const remove = [...had].filter((id) => !want.has(id));
+        if (!changed.length && !streamChanged && !add.length && !remove.length) continue;
+        changedStudents++;
+
+        if (changed.length || streamChanged) await tx.student.update({ where: { id: r.id }, data: { ...data, streamId: r.streamId } });
+        if (changed.length) await audit(user.id, "UPDATE", "Student", r.id, { changed, via: "bulk edit" }, tx);
+        if (streamChanged) {
+          await tx.enrollment.upsert({
+            where: { studentId_academicYearId: { studentId: r.id, academicYearId: year.id } },
+            update: { streamId: r.streamId },
+            create: { studentId: r.id, academicYearId: year.id, classId, streamId: r.streamId },
+          });
+          await audit(user.id, "TRANSFER_STREAM", "Student", r.id, { from: b.streamId, to: r.streamId, reason: "bulk edit" }, tx);
+        }
+        if (add.length || remove.length) {
+          if (remove.length) await tx.studentSubject.deleteMany({ where: { studentId: r.id, academicYearId: year.id, subjectId: { in: remove } } });
+          if (add.length) await tx.studentSubject.createMany({ data: add.map((subjectId) => ({ studentId: r.id, subjectId, academicYearId: year.id })), skipDuplicates: true });
+          await audit(user.id, "SET_SUBJECTS", "Student", r.id, { added: add, removed: remove, via: "bulk edit" }, tx);
+        }
+      }
+      return changedStudents;
+    }, { timeout: 60_000 });
+    return { ok: true, message: n ? `Saved changes for ${n} student${n === 1 ? "" : "s"}.` : "No changes to save." };
+  },
+);

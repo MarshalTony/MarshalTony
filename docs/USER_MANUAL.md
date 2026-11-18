@@ -37,6 +37,8 @@ Set up examinations, approve or return mark sheets, correct approved marks (with
 
 ## Registrar
 
+**Bulk edit (Students → Bulk edit):** choose a class (and optionally a stream) to edit all its students in one table — names, sex, stream, day/boarding, LIN, SchoolPay code, A-Level combination and **elective subjects** (one tick column per elective; click a subject heading to tick it for everyone, or for the learners you ticked). Tick learners and use *Apply to ticked* to set the stream, day/boarding or sex for many at once. Changed rows turn yellow; press *Save* to keep them or *Undo changes*. Stream changes also move the student's enrolment for the year; every change is in the audit log.
+
 Register students (or import), print admission forms and ID cards, add parents/guardians and create parent portal accounts, record transfers and withdrawals, manage UNEB candidate records and transport allocations.
 
 ## Librarian, store keeper, nurse/counsellor, transport officer
