@@ -1,3 +1,6 @@
+// Always render on request: the school name/logo come from the database and can change.
+export const dynamic = "force-dynamic";
+
 import { getSchool } from "@/server/school";
 import { SchoolLogo } from "@/components/logo";
 
