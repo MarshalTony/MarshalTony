@@ -3,13 +3,13 @@ import type { Prisma } from "@prisma/client";
 import { Download, Upload, UserPlus, ArrowUpCircle, Table2, Camera } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
-import { classTree, streamOptions, classOptions } from "@/server/queries/lookups";
+import { classTree } from "@/server/queries/lookups";
 import { Button } from "@/components/ui/button";
 import { Alert, PageHeader, StatusBadge } from "@/components/ui/card";
-import { FilterBar } from "@/components/filters";
+import { StudentFilters } from "@/components/student-filters";
 import { Pagination, SortTH, Table, THead, TH, TR, TD, hrefWith, pageParams, sortParams, sp, type SP } from "@/components/data-table";
 import { studentName } from "@/lib/utils";
-import { studentWhere } from "@/server/queries/students";
+import { MISSING_OPTIONS, studentWhere } from "@/server/queries/students";
 import { deleteStudent } from "@/server/actions/students";
 import { RowActions } from "@/components/row-actions";
 
@@ -23,17 +23,28 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const orderBy: Prisma.StudentOrderByWithRelationInput[] =
     sort.field === "class" ? [{ schoolClass: { order: sort.dir } }, { lastName: "asc" }] : [{ [sort.field]: sort.dir }];
   const where = studentWhere(params);
-  const [students, total, tree] = await Promise.all([
+  const [students, total, tree, subjects, combinations, bySex, byResidence] = await Promise.all([
     prisma.student.findMany({ where, orderBy, skip, take, include: { schoolClass: true, stream: true } }),
     prisma.student.count({ where }),
     classTree(),
+    prisma.subject.findMany({ where: { isActive: true }, orderBy: [{ level: "asc" }, { name: "asc" }], select: { id: true, name: true, level: true } }),
+    prisma.subjectCombination.findMany({ where: { isActive: true }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
+    prisma.student.groupBy({ by: ["gender"], where, _count: true }),
+    prisma.student.groupBy({ by: ["residence"], where, _count: true }),
   ]);
+  const n = (rows: { _count: number }[], pick: (r: any) => boolean) => rows.find(pick)?._count ?? 0;
+  const plural = (k: number, word: string) => `${k.toLocaleString()} ${word}${k === 1 ? "" : "s"}`;
+  const summary = [
+    `${total.toLocaleString()} student${total === 1 ? "" : "s"}`,
+    `${plural(n(bySex, (r) => r.gender === "MALE"), "boy")} · ${plural(n(bySex, (r) => r.gender === "FEMALE"), "girl")}`,
+    `${n(byResidence, (r) => r.residence === "DAY")} day · ${n(byResidence, (r) => r.residence === "BOARDING")} boarding`,
+  ];
   const manage = can(user, "students.manage");
   return (
     <>
       <PageHeader
         title="Students"
-        description={`${total.toLocaleString()} matching students`}
+        description="Search and filter the student register. The Excel export uses the same filters."
         actions={
           <>
             <Button asChild variant="outline"><a href={hrefWith("/api/export/students", params, {})}><Download />Export Excel</a></Button>
@@ -46,16 +57,14 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         }
       />
       {sp(params, "deleted") === "1" && <Alert tone="success" className="mb-4">The record was deleted. The deletion is recorded in the audit log.</Alert>}
-      <FilterBar
-        searchPlaceholder="Name, admission no. or UNEB index"
-        filters={[
-          { name: "classId", label: "Class", options: classOptions(tree) },
-          { name: "streamId", label: "Stream", options: streamOptions(tree) },
-          { name: "gender", label: "Gender", options: [{ value: "MALE", label: "Male" }, { value: "FEMALE", label: "Female" }] },
-          { name: "residence", label: "Residence", options: [{ value: "DAY", label: "Day" }, { value: "BOARDING", label: "Boarding" }] },
-          { name: "status", label: "Status", allowAll: false, value: sp(params, "status") ?? "ACTIVE", options: ["ACTIVE", "SUSPENDED", "WITHDRAWN", "TRANSFERRED", "GRADUATED", "EXPELLED", "ALL"].map((s) => ({ value: s, label: s === "ALL" ? "Any status" : s })) },
-        ]}
+      <StudentFilters
+        classes={tree.map((c) => ({ id: c.id, name: c.name, level: c.level, streams: c.streams }))}
+        subjects={subjects.map((x) => ({ value: x.id, label: `${x.name} (${x.level === "O_LEVEL" ? "O" : "A"})`, level: x.level }))}
+        combinations={combinations.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
+        missing={MISSING_OPTIONS}
+        statuses={["ACTIVE", "SUSPENDED", "WITHDRAWN", "TRANSFERRED", "GRADUATED", "EXPELLED", "ALL"].map((x) => ({ value: x, label: x === "ALL" ? "Any status" : x.charAt(0) + x.slice(1).toLowerCase() }))}
       />
+      <p className="mb-2 text-sm text-slate-600">{summary.join("  ·  ")}</p>
       <Table>
         <THead>
           <tr>
