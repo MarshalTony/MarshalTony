@@ -116,7 +116,7 @@ async function main() {
       await prisma.studentSubject.createMany({ data: [...new Set(subjectIds)].map((subjectId) => ({ studentId: student.id, subjectId, academicYearId: year.id })) });
       await prisma.enrollment.create({ data: { studentId: student.id, academicYearId: year.id, classId: st.classId, streamId: st.id } });
       // Every 7th student is a sibling of the previous one
-      let guardianId = lastGuardian;
+      let guardianId: string | null = lastGuardian;
       if (!guardianId || k % 7 !== 3) {
         const gu = await prisma.guardian.create({ data: { fullName: `${pick(BOYS)} ${last}`, phone: `07${int(0, 9)}${int(1000000, 9999999)}`, occupation: pick(["Farmer", "Teacher", "Trader", "Nurse", "Engineer"]) } });
         guardianId = gu.id;
