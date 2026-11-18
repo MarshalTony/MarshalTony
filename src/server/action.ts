@@ -2,6 +2,7 @@ import "server-only";
 import { z, ZodError, type ZodTypeAny } from "zod";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { redirect as nextRedirect } from "next/navigation";
 import type { PermissionCode } from "@/lib/permissions";
 import { AuthError, requireUser, type CurrentUser } from "./auth";
 
@@ -12,6 +13,8 @@ export type ActionResult<T = unknown> = {
   fieldErrors?: Record<string, string>;
   data?: T;
   redirect?: string;
+  /** Redirect performed on the server (used when the current page will no longer exist, e.g. after a delete). */
+  serverRedirect?: string;
 };
 
 export class UserError extends Error {}
@@ -64,6 +67,12 @@ export function action<S extends ZodTypeAny, T = unknown>(
   handler: Handler<S, T>,
 ) {
   return async (_prev: ActionResult | null, fd: FormData): Promise<ActionResult<T>> => {
+    const result = await run(fd);
+    // Outside the try/catch: Next.js implements redirect() by throwing.
+    if (result.ok && result.serverRedirect) nextRedirect(result.serverRedirect);
+    return result;
+  };
+  async function run(fd: FormData): Promise<ActionResult<T>> {
     try {
       const perms = opts.permission === null ? [] : Array.isArray(opts.permission) ? opts.permission : [opts.permission];
       const user = await requireUser(...perms);
@@ -74,7 +83,7 @@ export function action<S extends ZodTypeAny, T = unknown>(
     } catch (e) {
       return describeError(e) as ActionResult<T>;
     }
-  };
+  }
 }
 
 // ---- Reusable Zod field helpers (FormData values are strings) ----

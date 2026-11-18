@@ -5,11 +5,13 @@ import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
 import { classTree, streamOptions, classOptions } from "@/server/queries/lookups";
 import { Button } from "@/components/ui/button";
-import { PageHeader, StatusBadge } from "@/components/ui/card";
+import { Alert, PageHeader, StatusBadge } from "@/components/ui/card";
 import { FilterBar } from "@/components/filters";
-import { Pagination, SortTH, Table, THead, TH, TR, TD, hrefWith, pageParams, sortParams, type SP } from "@/components/data-table";
+import { Pagination, SortTH, Table, THead, TH, TR, TD, hrefWith, pageParams, sortParams, sp, type SP } from "@/components/data-table";
 import { studentName } from "@/lib/utils";
 import { studentWhere } from "@/server/queries/students";
+import { deleteStudent } from "@/server/actions/students";
+import { RowActions } from "@/components/row-actions";
 
 export const metadata = { title: "Students" };
 
@@ -41,6 +43,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
           </>
         }
       />
+      {sp(params, "deleted") === "1" && <Alert tone="success" className="mb-4">The record was deleted. The deletion is recorded in the audit log.</Alert>}
       <FilterBar
         searchPlaceholder="Name, admission no. or UNEB index"
         filters={[
@@ -48,7 +51,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
           { name: "streamId", label: "Stream", options: streamOptions(tree) },
           { name: "gender", label: "Gender", options: [{ value: "MALE", label: "Male" }, { value: "FEMALE", label: "Female" }] },
           { name: "residence", label: "Residence", options: [{ value: "DAY", label: "Day" }, { value: "BOARDING", label: "Boarding" }] },
-          { name: "status", label: "Status", options: ["ACTIVE", "SUSPENDED", "WITHDRAWN", "TRANSFERRED", "GRADUATED", "EXPELLED", "ALL"].map((s) => ({ value: s, label: s })) },
+          { name: "status", label: "Status", allowAll: false, value: sp(params, "status") ?? "ACTIVE", options: ["ACTIVE", "SUSPENDED", "WITHDRAWN", "TRANSFERRED", "GRADUATED", "EXPELLED", "ALL"].map((s) => ({ value: s, label: s === "ALL" ? "Any status" : s })) },
         ]}
       />
       <Table>
@@ -57,7 +60,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             <SortTH label="Adm. No." field="admissionNo" base="/students" params={params} />
             <SortTH label="Name" field="lastName" base="/students" params={params} />
             <SortTH label="Class" field="class" base="/students" params={params} />
-            <TH>Gender</TH><TH>Residence</TH><TH>Status</TH>
+            <TH>Gender</TH><TH>Residence</TH><TH>Status</TH><TH className="text-right">Actions</TH>
           </tr>
         </THead>
         <tbody>
@@ -69,9 +72,19 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
               <TD>{s.gender === "MALE" ? "M" : "F"}</TD>
               <TD>{s.residence === "DAY" ? "Day" : "Boarding"}</TD>
               <TD><StatusBadge status={s.status} /></TD>
+              <TD>
+                <RowActions
+                  label={studentName(s)}
+                  viewHref={`/students/${s.id}`}
+                  editHref={manage ? `/students/${s.id}/edit` : undefined}
+                  deleteAction={manage ? deleteStudent : undefined}
+                  deleteFields={{ id: s.id }}
+                  deleteConfirm={`Permanently delete ${studentName(s)} (${s.admissionNo})? Only use this for a record entered by mistake. Students with marks, fees, attendance or other history cannot be deleted — change their status instead.`}
+                />
+              </TD>
             </TR>
           ))}
-          {students.length === 0 && <TR><TD colSpan={6} className="py-8 text-center text-slate-500">No students match these filters.</TD></TR>}
+          {students.length === 0 && <TR><TD colSpan={7} className="py-8 text-center text-slate-500">No students match these filters.</TD></TR>}
         </tbody>
       </Table>
       <Pagination base="/students" params={params} total={total} page={page} pageSize={pageSize} />

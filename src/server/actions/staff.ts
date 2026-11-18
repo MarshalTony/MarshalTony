@@ -7,6 +7,7 @@ import { optNumber } from "../schemas";
 import { can } from "../auth";
 import { fileFrom, saveUpload } from "../storage";
 import { generateTempPassword, hashPassword } from "../passwords";
+import { deleteStaffRecord } from "../deletion";
 
 const fields = {
   staffNo: z.string().trim().toUpperCase().min(1).max(30), firstName: zs.str(60), lastName: zs.str(60), otherNames: zs.optStr(60),
@@ -76,5 +77,14 @@ export const createStaffAccount = action(
     });
     await audit(user.id, "CREATE_ACCOUNT", "Staff", st.id, { userId: u.id, username });
     return { ok: true, message: `Account created. Username: ${username} · Temporary password: ${temp}` };
+  },
+);
+
+export const deleteStaff = action(
+  { permission: "staff.manage", revalidate: "/staff", schema: z.object({ id: zs.id(), fromProfile: zs.bool() }) },
+  async ({ id, fromProfile }, user) => {
+    const st = await deleteStaffRecord(id, user.id);
+    const message = `${st.firstName} ${st.lastName} (${st.staffNo}) was deleted.`;
+    return { ok: true, message, ...(fromProfile ? { serverRedirect: "/staff?deleted=1" } : {}) };
   },
 );

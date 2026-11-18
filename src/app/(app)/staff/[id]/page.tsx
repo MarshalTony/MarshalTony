@@ -1,10 +1,10 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
-import { addQualification, createStaffAccount, removeQualification } from "@/server/actions/staff";
+import { addQualification, createStaffAccount, deleteStaff, removeQualification } from "@/server/actions/staff";
 import { Button } from "@/components/ui/button";
 import { Badge, Card, CardContent, CardHeader, CardTitle, DL, PageHeader, StatusBadge } from "@/components/ui/card";
 import { ConfirmAction, FormDialog, Grid, TextField } from "@/components/forms";
@@ -29,7 +29,13 @@ export default async function StaffProfile({ params }: { params: Promise<{ id: s
   const roles = can(user, "users.manage") && !s.userId ? await prisma.role.findMany({ where: { code: { notIn: ["PARENT", "STUDENT"] } }, orderBy: { name: "asc" } }) : [];
   return (
     <>
-      <PageHeader title={`${s.lastName} ${s.firstName}`} description={`${s.staffNo} · ${s.designation}`} actions={manage && <Button asChild><Link href={`/staff/${s.id}/edit`}><Pencil />Edit</Link></Button>} />
+      <PageHeader title={`${s.lastName} ${s.firstName}`} description={`${s.staffNo} · ${s.designation}`} actions={manage && (
+        <>
+          <Button asChild><Link href={`/staff/${s.id}/edit`}><Pencil />Edit</Link></Button>
+          <ConfirmAction action={deleteStaff} fields={{ id: s.id, fromProfile: "true" }} label="Delete" variant="destructive" size="default" icon={<Trash2 />}
+            confirm={`Permanently delete ${s.lastName} ${s.firstName} (${s.staffNo})? Only use this for a record entered by mistake. Staff with allocations, payroll, attendance or other history cannot be deleted — set their status to Exited instead.`} />
+        </>
+      )} />
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           <Card>

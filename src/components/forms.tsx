@@ -117,15 +117,18 @@ export function FormDialog({
 
 /** A one-click action (with confirmation) carrying hidden fields. */
 export function ConfirmAction({
-  action, fields, label, confirm, variant = "outline", size = "sm", icon,
+  action, fields, label, confirm, variant = "outline", size = "sm", icon, ariaLabel,
 }: {
   action: ServerAction; fields: Record<string, string>; label: string; confirm?: string;
-  variant?: ButtonProps["variant"]; size?: ButtonProps["size"]; icon?: React.ReactNode;
+  variant?: ButtonProps["variant"]; size?: ButtonProps["size"]; icon?: React.ReactNode; ariaLabel?: string;
 }) {
   return (
     <ActionForm action={action} hideSubmit confirmText={confirm} className="inline-block space-y-0">
       {Object.entries(fields).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
-      <SubmitButton variant={variant} size={size} pendingText="…">{icon}{label}</SubmitButton>
+      <SubmitButton variant={variant} size={size} pendingText="…" aria-label={ariaLabel} title={ariaLabel}
+        className={size === "icon" ? "h-8 w-8 border-slate-200 text-slate-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700" : undefined}>
+        {icon}{label}
+      </SubmitButton>
     </ActionForm>
   );
 }

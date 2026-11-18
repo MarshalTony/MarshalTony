@@ -7,6 +7,7 @@ import { upperOpt } from "../schemas";
 import { fileFrom, saveUpload } from "../storage";
 import { generateAdmissionNo, defaultSubjectIds, assertStreamInClass, currentYearOrThrow } from "../students";
 import { generateTempPassword, hashPassword } from "../passwords";
+import { deleteStudentRecord } from "../deletion";
 
 const studentFields = {
   admissionNo: upperOpt(30),
@@ -288,5 +289,14 @@ export const createStudentAccount = action(
     });
     await audit(user.id, "CREATE_PORTAL_ACCOUNT", "Student", s.id, { userId: u.id, username });
     return { ok: true, message: `Student portal account created. Username: ${username} · Temporary password: ${temp}` };
+  },
+);
+
+export const deleteStudent = action(
+  { permission: "students.manage", revalidate: "/students", schema: z.object({ id: zs.id(), fromProfile: zs.bool() }) },
+  async ({ id, fromProfile }, user) => {
+    const s = await deleteStudentRecord(id, user.id);
+    const message = `${s.firstName} ${s.lastName} (${s.admissionNo}) was deleted.`;
+    return { ok: true, message, ...(fromProfile ? { serverRedirect: "/students?deleted=1" } : {}) };
   },
 );
