@@ -22,8 +22,12 @@ export async function testClass(order: number, level: "O_LEVEL" | "A_LEVEL" = "O
 let n = 0;
 export async function student(classId: string, streamId: string, extra: Record<string, unknown> = {}) {
   n++;
+  const year = await prisma.academicYear.findFirstOrThrow({ where: { isCurrent: true } });
   return prisma.student.create({
-    data: { admissionNo: `${RUN}/${n}`, firstName: `F${n}`, lastName: `L${n}`, gender: n % 2 ? "MALE" : "FEMALE", admissionDate: new Date("2026-02-02"), classId, streamId, ...extra },
+    data: {
+      admissionNo: `${RUN}/${n}`, firstName: `F${n}`, lastName: `L${n}`, gender: n % 2 ? "MALE" : "FEMALE", admissionDate: new Date("2026-02-02"), classId, streamId, ...extra,
+      enrollments: { create: [{ academicYearId: year.id, classId, streamId }] },
+    },
   });
 }
 

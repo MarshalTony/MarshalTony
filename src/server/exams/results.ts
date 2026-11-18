@@ -38,11 +38,18 @@ async function effectiveMarks(examId: string, includeUnapproved: boolean) {
   const out = new Map<string, Map<string, MarkInput>>();
   const maxOverride = new Map<string, number>(); // `${classId}:${subjectId}` -> max (100 for composites)
 
+  /** Marks with the class/stream the student was enrolled in during that exam's year. */
   async function rawMarks(id: string) {
+    const ex = await prisma.exam.findUniqueOrThrow({ where: { id }, select: { term: { select: { academicYearId: true } } } });
     const approved = includeUnapproved ? null : await prisma.markSubmission.findMany({ where: { examId: id, status: "APPROVED" }, select: { streamId: true, subjectId: true } });
     const ok = approved ? new Set(approved.map((a) => `${a.streamId}:${a.subjectId}`)) : null;
-    const marks = await prisma.mark.findMany({ where: { examId: id }, include: { student: { select: { streamId: true } } } });
-    return marks.filter((m) => !ok || ok.has(`${m.student.streamId}:${m.subjectId}`));
+    const marks = await prisma.mark.findMany({
+      where: { examId: id },
+      include: { student: { select: { streamId: true, classId: true, enrollments: { where: { academicYearId: ex.term.academicYearId }, select: { classId: true, streamId: true } } } } },
+    });
+    return marks
+      .map((m) => ({ ...m, streamId: m.student.enrollments[0]?.streamId ?? m.student.streamId, classId: m.student.enrollments[0]?.classId ?? m.student.classId }))
+      .filter((m) => !ok || ok.has(`${m.streamId}:${m.subjectId}`));
   }
 
   if (!exam.isComposite) {
@@ -57,8 +64,7 @@ async function effectiveMarks(examId: string, includeUnapproved: boolean) {
   const parts = await Promise.all(
     exam.components.map(async (c) => {
       const marks = await rawMarks(c.componentExamId);
-      const students = await prisma.student.findMany({ where: { id: { in: [...new Set(marks.map((m) => m.studentId))] } }, select: { id: true, classId: true } });
-      const classOf = new Map(students.map((s) => [s.id, s.classId]));
+      const classOf = new Map(marks.map((m) => [m.studentId, m.classId]));
       const max = new Map(c.componentExam.subjects.map((s) => [`${s.classId}:${s.subjectId}`, Number(s.maxMarks)]));
       const byStudent = new Map<string, Map<string, { mark: MarkInput; max: number }>>();
       for (const m of marks) {
@@ -100,13 +106,15 @@ export async function generateResults(examId: string, opts: { includeUnapproved?
     const [scales, rule] = await Promise.all([loadScales(level), loadRule(level)]);
     if (!scales.length) throw new UserError(`No default grading scale is set for ${level === "O_LEVEL" ? "O-Level" : "A-Level"}.`);
     const subs = exam.subjects.filter((s) => s.classId === ec.classId);
-    // Students: active in the class now, or with marks recorded (so historical/withdrawn candidates with marks still get results)
-    const students = await prisma.student.findMany({
-      where: { classId: ec.classId, OR: [{ status: "ACTIVE" }, { marks: { some: { examId } } }] },
-      select: { id: true, classId: true, streamId: true, subjects: { where: { academicYearId: yearId }, select: { subjectId: true } } },
+    // Class and stream come from the enrollment for the EXAM's academic year (not the student's
+    // current class), so results for past exams stay correct after promotions and stream transfers.
+    // Students who have since left are included only if marks were recorded for them.
+    const enrollments = await prisma.enrollment.findMany({
+      where: { academicYearId: yearId, classId: ec.classId, OR: [{ student: { status: "ACTIVE" } }, { student: { marks: { some: { examId } } } }] },
+      select: { classId: true, streamId: true, student: { select: { id: true, subjects: { where: { academicYearId: yearId }, select: { subjectId: true } } } } },
     });
     const outcomes = computeResults({
-      students: students.map((s) => ({ id: s.id, classId: s.classId, streamId: s.streamId, subjectIds: s.subjects.map((x) => x.subjectId) })),
+      students: enrollments.map((e) => ({ id: e.student.id, classId: e.classId, streamId: e.streamId, subjectIds: e.student.subjects.map((x) => x.subjectId) })),
       subjects: subs.map((s) => ({
         subjectId: s.subjectId, maxMarks: maxOverride.get("*") ?? Number(s.maxMarks), category: s.subject.category as SubjectCategory, weight: Number(s.subject.weight),
       })),

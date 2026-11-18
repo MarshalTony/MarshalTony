@@ -119,3 +119,26 @@ describe("examination results (database)", async () => {
     expect(Number(r1.percentage)).toBe(91); // did not sit MOT → weights re-normalised to the EOT score
   });
 });
+
+describe("results after promotion use the exam-year class", async () => {
+  const admin = await adminUser();
+  const { year, term } = await currentYearAndTerm();
+  const from = await testClass(4);
+  const to = await testClass(5);
+  const eng = await prisma.subject.findUniqueOrThrow({ where: { code: "ENG" } });
+  const type = await prisma.examType.findUniqueOrThrow({ where: { code: "BOT" } });
+  it("keeps a promoted student's past result in their old class", async () => {
+    const st = await student(from.id, from.streams[0].id);
+    await prisma.studentSubject.create({ data: { studentId: st.id, subjectId: eng.id, academicYearId: year.id } });
+    const exam = await prisma.exam.create({ data: { name: `Promo ${from.code}`, examTypeId: type.id, termId: term.id, status: "OPEN", classes: { create: [{ classId: from.id }] }, subjects: { create: [{ classId: from.id, subjectId: eng.id }] } } });
+    await prisma.$transaction((tx) => saveMarks(tx, { examId: exam.id, streamId: from.streams[0].id, subjectId: eng.id, entries: [{ studentId: st.id, score: 77, status: "PRESENT" }], clear: [], user: admin }));
+    await prisma.markSubmission.updateMany({ where: { examId: exam.id }, data: { status: "APPROVED" } });
+    // Promote: the student's current class changes; the exam-year enrollment does not
+    await prisma.student.update({ where: { id: st.id }, data: { classId: to.id, streamId: to.streams[1].id } });
+    await generateResults(exam.id);
+    const r = await prisma.examResult.findUniqueOrThrow({ where: { examId_studentId: { examId: exam.id, studentId: st.id } } });
+    expect(r.classId).toBe(from.id);
+    expect(r.streamId).toBe(from.streams[0].id);
+    expect(Number(r.average)).toBe(77);
+  });
+});

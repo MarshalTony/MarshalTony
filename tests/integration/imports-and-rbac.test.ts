@@ -9,7 +9,7 @@ import { RUN, testClass } from "./helpers";
 describe("Excel import validation", async () => {
   const cls = await testClass(3);
   it("flags duplicates, invalid values and unknown classes without dropping rows", async () => {
-    const rows = [
+    const rows: { rowNumber: number; values: Record<string, string> }[] = [
       { rowNumber: 2, values: { admissionNo: `${RUN}/IMP1`, lastName: "Ok", firstName: "A", gender: "M", classCode: cls.code, stream: "A", residence: "DAY", dateOfBirth: "12/05/2011" } },
       { rowNumber: 3, values: { admissionNo: `${RUN}/IMP1`, lastName: "Dup", firstName: "B", gender: "F", classCode: cls.code, stream: "A", residence: "DAY" } },
       { rowNumber: 4, values: { admissionNo: "", lastName: "", firstName: "C", gender: "X", classCode: "S9", stream: "Z", residence: "HOSTEL", dateOfBirth: "31/31/2020" } },
