@@ -6,6 +6,8 @@ import { Alert, Card, CardContent, CardHeader, CardTitle, PageHeader, StatusBadg
 import { Table, THead, TH, TR, TD, sp, type SP } from "@/components/data-table";
 import { FileText } from "lucide-react";
 import { ordinal, studentName } from "@/lib/utils";
+import { resultsReadiness } from "@/server/exams/readiness";
+import { ResultsReadinessAlert } from "@/components/results-readiness";
 
 export const metadata = { title: "Report cards" };
 
@@ -19,6 +21,7 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
   const exam = exams.find((e) => e.id === sp(params, "examId")) ?? exams[0];
   const streams = exam ? exam.classes.flatMap((c) => c.schoolClass.streams.map((s) => ({ id: s.id, label: `${c.schoolClass.code} ${s.name}` }))) : [];
   const streamId = sp(params, "streamId");
+  const readiness = exam ? await resultsReadiness(exam.id) : null;
   const results = exam && streamId ? await prisma.examResult.findMany({ where: { examId: exam.id, streamId }, include: { student: true }, orderBy: { streamPosition: { sort: "asc", nulls: "last" } } }) : [];
   return (
     <>
@@ -29,6 +32,7 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
             { name: "examId", label: "Exam", allowAll: false, value: exam.id, options: exams.map((e) => ({ value: e.id, label: `${e.term.academicYear.name} ${e.term.name} — ${e.name}` })) },
             { name: "streamId", label: "Stream", options: streams.map((s) => ({ value: s.id, label: s.label })) },
           ]} />
+          {readiness && <ResultsReadinessAlert r={readiness} examHref={`/exams/${exam.id}`} />}
           <Card className="mb-5">
             <CardHeader><CardTitle>{exam.name}</CardTitle><StatusBadge status={exam.status} /></CardHeader>
             <CardContent className="flex flex-wrap gap-2">

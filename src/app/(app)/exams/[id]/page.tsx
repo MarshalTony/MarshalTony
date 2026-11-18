@@ -10,6 +10,8 @@ import { ActionForm, CheckboxField, ConfirmAction, FormDialog, TextField } from 
 import { Button } from "@/components/ui/button";
 import { Alert, Badge, Card, CardContent, CardHeader, CardTitle, PageHeader, StatusBadge } from "@/components/ui/card";
 import { fmtDate, fmtDateTime, isoDate } from "@/lib/utils";
+import { resultsReadiness } from "@/server/exams/readiness";
+import { ResultsReadinessAlert } from "@/components/results-readiness";
 
 export default async function ExamDetail({ params }: { params: Promise<{ id: string }> }) {
   const user = await requirePage("exams.manage", "marks.enter", "marks.approve", "results.view");
@@ -26,6 +28,7 @@ export default async function ExamDetail({ params }: { params: Promise<{ id: str
   });
   if (!exam) notFound();
   const manage = can(user, "exams.manage");
+  const readiness = await resultsReadiness(exam.id);
   const approve = can(user, "marks.approve");
   const levelSubjects = await prisma.subject.findMany({ where: { isActive: true }, orderBy: { name: "asc" } });
   const markRows = await prisma.$queryRaw<{ streamId: string; subjectId: string; n: bigint }[]>`
@@ -152,6 +155,7 @@ export default async function ExamDetail({ params }: { params: Promise<{ id: str
               <CardHeader><CardTitle>Results</CardTitle></CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <p className="text-slate-600">Last generated: {fmtDateTime(exam.resultsGeneratedAt)}. Re-generate after corrections or changes to grading rules.</p>
+                <ResultsReadinessAlert r={readiness} />
                 <ActionForm action={generateResultsAction} submitLabel="Generate results">
                   <input type="hidden" name="examId" value={exam.id} />
                   <CheckboxField name="includeUnapproved" label="Include marks not yet approved (provisional)" />
