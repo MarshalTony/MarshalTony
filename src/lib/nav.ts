@@ -17,9 +17,9 @@ export const NAV: NavGroup[] = [
     label: "Academics",
     items: [
       { href: "/academics", label: "Classes & Subjects", icon: "book", perms: ["academics.view"] },
+      { href: "/scores", label: "Enter Scores", icon: "check", perms: ["marks.enter", "marks.enter.any"] },
       { href: "/timetable", label: "Timetables", icon: "clock", perms: ["academics.view"] },
       { href: "/exams", label: "Examinations", icon: "clipboard", perms: ["exams.manage", "marks.enter", "marks.approve", "results.view"] },
-      { href: "/activities", label: "Activities (AOI)", icon: "check", perms: ["marks.enter", "marks.enter.any"] },
       { href: "/report-cards", label: "Report Cards", icon: "file", perms: ["reportcards.generate"] },
       { href: "/attendance", label: "Attendance", icon: "check", perms: ["attendance.take", "attendance.view", "attendance.staff"] },
       { href: "/learning", label: "Assignments & Materials", icon: "library", perms: ["learning.manage"] },

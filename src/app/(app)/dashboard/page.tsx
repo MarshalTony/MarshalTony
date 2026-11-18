@@ -144,7 +144,7 @@ async function TeacherSection({ staffId, termId }: { staffId: string; termId?: s
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       <Card>
-        <CardHeader><CardTitle>My classes & marks entry</CardTitle><Link href="/exams" className="text-sm text-brand-700 hover:underline">Examinations</Link></CardHeader>
+        <CardHeader><CardTitle>My classes & marks entry</CardTitle><Link href="/scores" className="text-sm text-brand-700 hover:underline">Enter scores</Link></CardHeader>
         <CardContent>
           {classTeacherOf.length > 0 && <p className="mb-2 text-sm">Class teacher of: {classTeacherOf.map((s) => <Badge key={s.id} color="green" className="mr-1">{s.schoolClass.code} {s.name} ({s._count.students})</Badge>)}</p>}
           <Table>
