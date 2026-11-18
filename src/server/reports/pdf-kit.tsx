@@ -56,11 +56,11 @@ export function Letterhead({ b, right }: { b: Branding; right?: React.ReactNode 
   );
 }
 
-export function Footer({ by }: { by: string }) {
+export function Footer({ by, pages = true }: { by: string; pages?: boolean }) {
   return (
     <View style={s.footer} fixed>
       <Text>Generated {new Date().toLocaleString("en-GB", { timeZone: "Africa/Kampala" })} by {by} · Bishop Ogez SMIS</Text>
-      <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
+      {pages ? <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} /> : null}
     </View>
   );
 }

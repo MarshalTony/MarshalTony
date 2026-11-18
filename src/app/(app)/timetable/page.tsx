@@ -48,7 +48,7 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
       <PageHeader title="Timetables" description={`Class timetable for the current term. Teacher double-booking is prevented.`} actions={
         manage && streamId ? <FormDialog trigger="Add period" title="Add a period" action={saveTimetableSlot} wide>{fields()}</FormDialog> : null
       } />
-      <FilterBar filters={[{ name: "streamId", label: "Stream", options: streamOptions(tree) }]} />
+      <FilterBar filters={[{ name: "streamId", label: "Stream", allowAll: false, value: streamId, options: streamOptions(tree) }]} />
       {!stream ? <EmptyState title="No streams set up yet" /> : (
         <TimetableGrid
           title={`${stream.cls.name} ${stream.name}`}

@@ -10,7 +10,7 @@ export function FilterBar({
   searchPlaceholder, filters = [], children,
 }: {
   searchPlaceholder?: string;
-  filters?: { name: string; label: string; options: { value: string; label: string }[] }[];
+  filters?: { name: string; label: string; options: { value: string; label: string }[]; allowAll?: boolean; value?: string }[];
   children?: React.ReactNode;
 }) {
   const router = useRouter();
@@ -41,12 +41,12 @@ export function FilterBar({
         <Select
           key={f.name}
           name={f.name}
-          defaultValue={params.get(f.name) ?? ""}
+          defaultValue={params.get(f.name) ?? f.value ?? ""}
           aria-label={f.label}
           className="w-auto min-w-[140px]"
           onChange={(e) => e.currentTarget.form?.requestSubmit()}
         >
-          <option value="">{f.label}: All</option>
+          {f.allowAll !== false && <option value="">{f.label}: All</option>}
           {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </Select>
       ))}
