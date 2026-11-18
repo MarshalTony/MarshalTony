@@ -10,6 +10,7 @@ ACC_DB="smis_accept_$STAMP"
 RES_DB="smis_restore_$STAMP"
 BASE_CONN="${PG_ADMIN_URL%/*}"
 export DATABASE_URL="$BASE_CONN/$ACC_DB"
+export DIRECT_URL="$DATABASE_URL"
 PORT="${PORT:-3100}"
 
 echo "==> Creating $ACC_DB"

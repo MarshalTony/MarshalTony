@@ -18,7 +18,18 @@ Create these with a school-controlled email (e.g. ogezhigh@gmail.com) so the sch
 
 1. Create a project in the **Frankfurt / eu-central-1** region (closest supported region to Uganda alongside Vercel `fra1`).
 2. Create two databases/branches: `production` and `staging`. Enable point-in-time recovery / daily backups (retain ≥ 7 days; 30 recommended).
-3. Copy the **pooled** connection string for the app (`?sslmode=require`), e.g. Neon `…-pooler…/smis?sslmode=require`.
+3. Two connection strings are needed:
+   * `DATABASE_URL` — the **transaction pooler** for the app (serverless). Supabase: port **6543**, add `?pgbouncer=true&connection_limit=1&schema=smis&sslmode=require`.
+   * `DIRECT_URL` — the **session/direct** connection for migrations and backups. Supabase: session pooler port **5432**, `?schema=smis&sslmode=require`.
+4. **Supabase only:** keep the school tables out of the auto-published `public` schema (Supabase's Data API exposes it with the public anon key). Create a dedicated login and schema once in the SQL editor:
+   ```sql
+   CREATE ROLE smis_app LOGIN PASSWORD '<strong password>';
+   GRANT smis_app TO postgres;
+   CREATE SCHEMA smis AUTHORIZATION smis_app;
+   REVOKE ALL ON SCHEMA smis FROM PUBLIC;
+   ALTER ROLE smis_app SET search_path = smis;
+   ```
+   and connect as user `smis_app.<project-ref>`.
 
 ## 3. File storage (Cloudflare R2)
 
@@ -31,12 +42,14 @@ On Vercel the app refuses uploads unless S3 storage is configured (Vercel has no
 
 ## 4. Vercel project
 
-1. *Add New → Project* → import the GitHub repository. Framework: Next.js. `vercel.json` sets the build command (`npm run vercel-build` = `prisma generate && prisma migrate deploy && next build`), region `fra1` and 60 s limits for PDF/report routes.
+1. *Add New → Project* → import the GitHub repository. Framework: Next.js. `vercel.json` sets the build command (`npm run vercel-build` = `prisma generate && prisma migrate deploy && tsx prisma/seed.ts && next build` — the seed is idempotent and only loads configuration), region `fra1` and 60 s limits for PDF/report routes.
 2. *Settings → Environment Variables* — add for **Production** and separately for **Preview (staging)**:
 
 | Variable | Value |
 |---|---|
-| `DATABASE_URL` | pooled connection string for that environment |
+| `DATABASE_URL` | transaction-pooler connection string for that environment |
+| `DIRECT_URL` | session/direct connection string (migrations) |
+| `SEED_ADMIN_PASSWORD` | initial `admin` password (sensitive; used only when the database has no users) |
 | `APP_URL` | `https://smis.bishopogez.com` (staging: its own URL) |
 | `STORAGE_DRIVER`, `S3_*` | as above |
 | `SMTP_*` | when email is ready |
