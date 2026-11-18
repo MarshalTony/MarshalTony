@@ -18,7 +18,10 @@ export async function GET() {
     const delegate = (prisma as any)[m.name.charAt(0).toLowerCase() + m.name.slice(1)];
     data[m.name] = await delegate.findMany();
   }
-  const body = zlib.gzipSync(JSON.stringify({ format: "smis-export-v1", exportedAt: new Date().toISOString(), data }));
+  // Binary columns (stored files) are exported as base64 instead of JSON number arrays.
+  const json = JSON.stringify({ format: "smis-export-v1", exportedAt: new Date().toISOString(), data }, (_k, v) =>
+    v instanceof Uint8Array ? { base64: Buffer.from(v).toString("base64") } : v);
+  const body = zlib.gzipSync(json);
   await audit(user.id, "BACKUP_DOWNLOAD", "Database", null, { tables: Object.keys(data).length, bytes: body.length });
   const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
   return new Response(new Uint8Array(body), {

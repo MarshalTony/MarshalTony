@@ -28,7 +28,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     if (!allowed) return new Response("Forbidden", { status: 403 });
   }
 
-  const body = await readStoredFile(file.key);
+  const body = await readStoredFile(file.key, file.data);
   return new Response(new Uint8Array(body), {
     headers: {
       "Content-Type": file.mimeType,

@@ -27,7 +27,7 @@ export async function loadBranding(): Promise<Branding> {
   let logo: Buffer | null = null;
   if (sch?.logoFileId) {
     const f = await prisma.storedFile.findUnique({ where: { id: sch.logoFileId } });
-    if (f && f.mimeType !== "image/webp") logo = await readStoredFile(f.key).catch(() => null);
+    if (f && f.mimeType !== "image/webp") logo = await readStoredFile(f.key, f.data).catch(() => null);
   }
   return {
     name: sch?.name ?? "Bishop Ogez High School",

@@ -36,7 +36,7 @@ export default async function LearningPage() {
             <Grid><SelectField label="Class" name="classId" required options={uniq(classes).map((c) => ({ value: c.id, label: c.name }))} /><SelectField label="Subject" name="subjectId" required options={subjectOpts} /></Grid>
             <TextField label="Title" name="title" required />
             <TextAreaField label="Description" name="description" rows={3} />
-            <Grid><TextField label="Link (https://…)" name="url" /><TextField label="or file (PDF/image, max 10 MB)" name="file" type="file" accept="application/pdf,image/*" /></Grid>
+            <Grid><TextField label="Link (https://…)" name="url" /><TextField label="or file (PDF/image, max 4 MB)" name="file" type="file" accept="application/pdf,image/*" /></Grid>
           </FormDialog>
         </>
       } />

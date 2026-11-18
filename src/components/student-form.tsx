@@ -1,6 +1,7 @@
 import type { Student } from "@prisma/client";
 import { ActionForm, Grid, SelectField, TextAreaField, TextField } from "./forms";
 import { ClassStreamSelect } from "./class-stream-select";
+import { ImageField } from "./image-field";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import type { ActionResult } from "@/server/action";
 import type { ClassTree } from "@/server/queries/lookups";
@@ -28,7 +29,7 @@ export function StudentForm({
             <TextField label="Nationality" name="nationality" defaultValue={s?.nationality ?? "Ugandan"} />
             <TextField label="Religion" name="religion" defaultValue={s?.religion ?? ""} />
             <TextField label="Home address" name="homeAddress" defaultValue={s?.homeAddress ?? ""} />
-            <TextField label="Passport photo (JPG/PNG, max 2 MB)" name="photo" type="file" accept="image/jpeg,image/png,image/webp" />
+            <ImageField label="Passport photo" name="photo" hint="Resized automatically before upload" currentUrl={s?.photoFileId ? `/api/files/${s.photoFileId}` : null} />
           </Grid>
         </CardContent>
       </Card>

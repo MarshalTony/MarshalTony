@@ -1,6 +1,7 @@
 import type { Staff } from "@prisma/client";
 import { ActionForm, CheckboxField, Grid, SelectField, TextField } from "./forms";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { ImageField } from "./image-field";
 import type { ActionResult } from "@/server/action";
 import { isoDate } from "@/lib/utils";
 
@@ -28,7 +29,7 @@ export function StaffForm({
             <TextField label="Email" name="email" type="email" defaultValue={s?.email ?? ""} />
             <TextField label="National ID (NIN)" name="nationalId" defaultValue={s?.nationalId ?? ""} />
             <TextField label="Address" name="address" defaultValue={s?.address ?? ""} />
-            <TextField label="Photo (JPG/PNG)" name="photo" type="file" accept="image/jpeg,image/png,image/webp" />
+            <ImageField label="Photo" name="photo" hint="Resized automatically before upload" currentUrl={s?.photoFileId ? `/api/files/${s.photoFileId}` : null} />
           </Grid>
         </CardContent>
       </Card>

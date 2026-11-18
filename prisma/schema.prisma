@@ -168,6 +168,8 @@ model StoredFile {
   // Who may read it: PUBLIC (logo), STUDENT_PHOTO, STAFF_PHOTO, DOCUMENT, MATERIAL
   category     String
   uploadedById String?
+  // File contents when STORAGE_DRIVER=database (default on Vercel). Null for local/S3 storage.
+  data         Bytes?
   createdAt    DateTime @default(now())
 }
 

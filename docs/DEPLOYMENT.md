@@ -31,14 +31,17 @@ Create these with a school-controlled email (e.g. ogezhigh@gmail.com) so the sch
    ```
    and connect as user `smis_app.<project-ref>`.
 
-## 3. File storage (Cloudflare R2)
+## 3. File storage
 
-1. Create bucket `bishopogez-smis` (private — never public).
-2. Create an API token with *Object Read & Write* on that bucket.
-3. Set `STORAGE_DRIVER=s3`, `S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`, `S3_REGION=auto`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`.
-4. Create a second bucket `bishopogez-smis-backups` for the nightly backups.
+Photos, the logo and attachments are stored according to `STORAGE_DRIVER`:
 
-On Vercel the app refuses uploads unless S3 storage is configured (Vercel has no persistent disk).
+| Driver | Where | When to use |
+|---|---|---|
+| `database` (**default on Vercel**) | `StoredFile.data` in PostgreSQL | Pilot and small/medium schools. Private, included in database backups, no extra service. Images are resized in the browser before upload (photos ≤ 800 px ≈ 60–100 KB), so 1,000 student photos use about 100 MB. |
+| `s3` | Any S3-compatible bucket (Cloudflare R2, AWS S3, Supabase Storage) | When files grow beyond a few hundred MB. Set `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`. Keep the bucket private. |
+| `local` | `./storage` on disk | Development only; refused on Vercel. |
+
+Files stored with one driver remain readable after switching to another (the database copy is checked first). Vercel limits request bodies to 4.5 MB, so PDF attachments are limited to 4 MB.
 
 ## 4. Vercel project
 
@@ -51,7 +54,7 @@ On Vercel the app refuses uploads unless S3 storage is configured (Vercel has no
 | `DIRECT_URL` | session/direct connection string (migrations) |
 | `SEED_ADMIN_PASSWORD` | initial `admin` password (sensitive; used only when the database has no users) |
 | `APP_URL` | `https://smis.bishopogez.com` (staging: its own URL) |
-| `STORAGE_DRIVER`, `S3_*` | as above |
+| `STORAGE_DRIVER` | `database` (or `s3` with the `S3_*` settings) |
 | `SMTP_*` | when email is ready |
 | `AT_USERNAME`, `AT_API_KEY`, `AT_SENDER_ID` | when SMS is ready |
 | `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN` | when WhatsApp is ready |

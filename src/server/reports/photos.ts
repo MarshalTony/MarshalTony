@@ -8,7 +8,7 @@ export async function photoBuffers(fileIds: (string | null)[]) {
   const files = await prisma.storedFile.findMany({ where: { id: { in: ids }, mimeType: { in: ["image/jpeg", "image/png"] } } });
   const out = new Map<string, Buffer>();
   await Promise.all(files.map(async (f) => {
-    const b = await readStoredFile(f.key).catch(() => null);
+    const b = await readStoredFile(f.key, f.data).catch(() => null);
     if (b) out.set(f.id, b);
   }));
   return out;

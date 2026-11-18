@@ -3,7 +3,7 @@ import { getSchool } from "@/server/school";
 import { saveSchoolProfile, saveReportTemplate, saveNotificationPrefs } from "@/server/actions/settings";
 import { ActionForm, CheckboxField, Grid, TextField, TextAreaField } from "@/components/forms";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SchoolLogo } from "@/components/logo";
+import { ImageField } from "@/components/image-field";
 import { channelConfigured } from "@/server/messaging";
 
 export default async function SchoolSettings() {
@@ -17,10 +17,7 @@ export default async function SchoolSettings() {
         <CardHeader><CardTitle>School profile</CardTitle></CardHeader>
         <CardContent>
           <ActionForm action={saveSchoolProfile}>
-            <div className="flex items-center gap-4">
-              <SchoolLogo fileId={s.logoFileId} size={64} />
-              <TextField label="Logo (PNG/JPG, max 2 MB)" name="logo" type="file" accept="image/png,image/jpeg,image/webp" />
-            </div>
+            <ImageField label="School logo (PNG with transparent background is best)" name="logo" maxSize={512} keepPng currentUrl={s.logoFileId ? `/api/files/${s.logoFileId}` : null} hint="Shown on the sign-in page, sidebar, report cards, receipts and ID cards" />
             <Grid>
               <TextField label="School name" name="name" defaultValue={s.name} required />
               <TextField label="Motto" name="motto" defaultValue={s.motto ?? ""} />
