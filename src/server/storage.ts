@@ -26,6 +26,8 @@ const LOCAL_DIR = path.join(process.cwd(), "storage");
 
 export async function saveUpload(file: File, category: string, userId: string, opts: { imagesOnly?: boolean } = {}) {
   if (!file || file.size === 0) throw new UserError("No file selected.");
+  // Serverless hosts have no persistent disk: refuse rather than silently lose the file.
+  if (process.env.VERCEL && process.env.STORAGE_DRIVER !== "s3") throw new UserError("File storage is not configured. The administrator must set the S3 storage settings (see docs/DEPLOYMENT.md).");
   const buf = Buffer.from(await file.arrayBuffer());
   const sig = SIGNATURES.find((s) => s.test(buf));
   if (!sig || (opts.imagesOnly && !sig.mime.startsWith("image/"))) throw new UserError(opts.imagesOnly ? "Upload a JPG, PNG or WebP image." : "Upload a JPG, PNG, WebP image or PDF.");

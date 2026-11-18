@@ -22,7 +22,7 @@ npx tsx prisma/demo-data.ts
 echo "==> Starting production server on :$PORT"
 if curl -s -o /dev/null "http://localhost:$PORT"; then echo "Port $PORT is already in use — stop that server first." >&2; exit 1; fi
 # setsid: own process group, so the whole server tree is stopped on exit
-APP_URL="http://localhost:$PORT" SESSION_SECRET=acceptance setsid ./node_modules/.bin/next start -p "$PORT" > /tmp/smis-accept-server.log 2>&1 &
+APP_URL="http://localhost:$PORT" setsid ./node_modules/.bin/next start -p "$PORT" > /tmp/smis-accept-server.log 2>&1 &
 SERVER=$!
 trap 'kill -- -$SERVER 2>/dev/null || kill $SERVER 2>/dev/null || true' EXIT
 for i in $(seq 1 60); do curl -sf "http://localhost:$PORT/login" >/dev/null && break; sleep 1; done
