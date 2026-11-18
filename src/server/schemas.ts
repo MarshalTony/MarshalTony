@@ -39,3 +39,17 @@ export const feeLinesField = z.string().transform((s, ctx) => {
   if (!out.length) ctx.addIssue({ code: "custom", message: "Add at least one fee item" });
   return out;
 });
+
+/** PO items, one per line: "Description, quantity, unit price". */
+export const poItemsField = z.string().transform((s, ctx) => {
+  const out = s.split("\n").map((l) => l.trim()).filter(Boolean).map((line, i) => {
+    const parts = line.split(",").map((x) => x.trim());
+    const unitPrice = Number((parts.pop() ?? "").replace(/\s/g, ""));
+    const quantity = Number(parts.pop() ?? "");
+    const description = parts.join(", ");
+    if (!description || !(quantity > 0) || !(unitPrice >= 0)) ctx.addIssue({ code: "custom", message: `Line ${i + 1} must look like "Exercise books, 200, 1500"` });
+    return { description: description.slice(0, 200), quantity, unitPrice };
+  });
+  if (!out.length) ctx.addIssue({ code: "custom", message: "Add at least one item" });
+  return out;
+});

@@ -35,7 +35,15 @@ export function ActionForm({
   submitVariant?: ButtonProps["variant"]; resetOnSuccess?: boolean; onSuccess?: (r: ActionResult) => void;
   hideSubmit?: boolean; confirmText?: string; refresh?: boolean;
 }) {
-  const [state, formAction, isPending] = useActionState(action, null);
+  // Toasts fire as soon as the server answers, so feedback still shows when the
+  // action re-renders the page and removes this form (e.g. an "Approve" button).
+  const withToast = React.useCallback(async (prev: ActionResult | null, fd: FormData) => {
+    const r = await action(prev, fd);
+    if (r.ok && r.message) toast.success(r.message, { duration: r.message.includes("password") ? 30000 : 5000 });
+    else if (!r.ok && r.error) toast.error(r.error);
+    return r;
+  }, [action]);
+  const [state, formAction, isPending] = useActionState(withToast, null);
   const [, startTransition] = React.useTransition();
   const formRef = React.useRef<HTMLFormElement>(null);
   const router = useRouter();
@@ -45,13 +53,10 @@ export function ActionForm({
     if (!state || state === lastState.current) return;
     lastState.current = state;
     if (state.ok) {
-      if (state.message) toast.success(state.message);
       if (resetOnSuccess) formRef.current?.reset();
       onSuccess?.(state);
       if (state.redirect) router.push(state.redirect);
       else if (refresh) router.refresh();
-    } else if (state.error) {
-      toast.error(state.error);
     }
   }, [state, resetOnSuccess, onSuccess, router, refresh]);
 
