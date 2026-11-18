@@ -53,3 +53,7 @@ export const poItemsField = z.string().transform((s, ctx) => {
   if (!out.length) ctx.addIssue({ code: "custom", message: "Add at least one item" });
   return out;
 });
+
+export const optUrl = z.string().trim().url().optional().or(z.literal("").transform(() => undefined));
+
+export const nonZeroNumber = z.coerce.number().refine((n) => n !== 0, "Quantity cannot be zero");

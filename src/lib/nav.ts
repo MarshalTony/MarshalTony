@@ -35,7 +35,7 @@ export const NAV: NavGroup[] = [
   {
     label: "Operations",
     items: [
-      { href: "/hr", label: "HR & Payroll", icon: "idcard", perms: ["staff.manage", "hr.leave.approve", "payroll.manage"] },
+      { href: "/hr", label: "HR, Leave & Payroll", icon: "idcard", perms: [] },
       { href: "/library", label: "Library", icon: "library", perms: ["library.manage"] },
       { href: "/inventory", label: "Inventory", icon: "package", perms: ["inventory.manage"] },
       { href: "/welfare", label: "Discipline & Welfare", icon: "shield", perms: ["discipline.manage", "welfare.confidential"] },
