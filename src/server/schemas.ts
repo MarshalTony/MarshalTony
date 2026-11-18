@@ -1,0 +1,29 @@
+import { z } from "zod";
+
+/** Schema pieces with callbacks live here: "use server" files may only contain async functions. */
+export const upperOpt = (max = 30) => z.string().trim().max(max).optional().transform((v) => (v ? v.toUpperCase() : undefined));
+export const optNumber = () => z.preprocess((v) => (v === undefined || v === "" ? undefined : v), z.coerce.number().min(0).optional());
+
+export const bandsField = z.string().transform((s, ctx) => {
+  // One band per line: GRADE, MIN, MAX, POINTS, REMARK
+  const rows = s.split("\n").map((l) => l.trim()).filter(Boolean);
+  const out = rows.map((line, i) => {
+    const [grade, min, max, points, ...remark] = line.split(",").map((x) => x.trim());
+    const b = { grade, minScore: Number(min), maxScore: Number(max), points: Number(points), remark: remark.join(", ") };
+    if (!grade || [b.minScore, b.maxScore, b.points].some((n) => !Number.isFinite(n)) || b.minScore > b.maxScore || b.minScore < 0 || b.maxScore > 100) {
+      ctx.addIssue({ code: "custom", message: `Line ${i + 1} is invalid: "${line}"` });
+    }
+    return b;
+  });
+  if (!out.length) ctx.addIssue({ code: "custom", message: "Add at least one band" });
+  return out;
+});
+
+export const divisionsField = z.string().optional().transform((s, ctx) =>
+  (s ?? "").split("\n").map((l) => l.trim()).filter(Boolean).map((line, i) => {
+    const [label, min, max] = line.split(",").map((x) => x.trim());
+    const d = { label, min: Number(min), max: Number(max) };
+    if (!label || !Number.isFinite(d.min) || !Number.isFinite(d.max)) ctx.addIssue({ code: "custom", message: `Division line ${i + 1} is invalid` });
+    return d;
+  }),
+);

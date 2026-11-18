@@ -8,7 +8,7 @@ export const metadata = { title: "Sign in" };
 
 export default async function LoginPage() {
   const user = await getCurrentUser();
-  if (user) redirect(homeFor(user.roles));
+  if (user) redirect(user.mustChangePassword ? "/change-password" : homeFor(user.roles));
   return (
     <>
       <h2 className="mb-4 text-lg font-semibold">Sign in</h2>
