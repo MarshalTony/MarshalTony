@@ -21,6 +21,7 @@ export const NAV: NavGroup[] = [
       { href: "/timetable", label: "Timetables", icon: "clock", perms: ["academics.view"] },
       { href: "/exams", label: "Examinations", icon: "clipboard", perms: ["exams.manage", "marks.enter", "marks.approve", "results.view"] },
       { href: "/report-cards", label: "Report Cards", icon: "file", perms: ["reportcards.generate"] },
+      { href: "/comment-bank", label: "Comment Bank", icon: "message", perms: ["reports.comment.class", "reports.comment.dos", "reports.comment.head", "settings.manage"] },
       { href: "/attendance", label: "Attendance", icon: "check", perms: ["attendance.take", "attendance.view", "attendance.staff"] },
       { href: "/learning", label: "Assignments & Materials", icon: "library", perms: ["learning.manage"] },
       { href: "/uneb", label: "UNEB Candidates", icon: "award", perms: ["uneb.manage"] },

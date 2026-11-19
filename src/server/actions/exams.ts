@@ -212,25 +212,6 @@ export const saveComments = action(
 );
 
 /** Auto-fills empty comments from the grade remark of the student's average (DOS/head convenience). */
-export const autoComments = action(
-  { permission: ["reports.comment.dos", "reports.comment.head"], schema: z.object({ examId: zs.id(), streamId: zs.id() }) },
-  async ({ examId, streamId }, user) => {
-    const results = await prisma.examResult.findMany({ where: { examId, streamId } });
-    const phrase = (avg: number) =>
-      avg >= 80 ? "Excellent performance. Keep it up." : avg >= 70 ? "Very good work. Aim higher." : avg >= 60 ? "Good effort; there is room for improvement."
-        : avg >= 50 ? "Fair performance. Work harder." : "Below expectations. Needs serious improvement and support.";
-    let n = 0;
-    for (const r of results) {
-      const existing = await prisma.reportComment.findUnique({ where: { examId_studentId: { examId, studentId: r.studentId } } });
-      const field = can(user, "reports.comment.head") ? "headteacherComment" : "dosComment";
-      if (existing?.[field]) continue;
-      await prisma.reportComment.upsert({ where: { examId_studentId: { examId, studentId: r.studentId } }, update: { [field]: phrase(Number(r.average)) }, create: { examId, studentId: r.studentId, [field]: phrase(Number(r.average)) } });
-      n++;
-    }
-    await audit(user.id, "AUTO_COMMENTS", "Exam", examId, { streamId, n });
-    return { ok: true, message: `${n} empty comment(s) filled. Review and edit as needed.` };
-  },
-);
 
 export const notifyResults = action(
   { permission: "communication.send", schema: z.object({ examId: zs.id() }) },

@@ -20,6 +20,10 @@ Sign in at **https://smis.bishopogez.com** with the username and temporary passw
 
 Everything above, plus: write **class-teacher comments** and conduct for your stream (Examinations → exam → Report cards → *Comments*), record **discipline incidents**, and print your stream's report cards.
 
+**Report card comments:** Examinations → the exam → *Comments* for your stream (switch streams at the top). Each student's **score and grade** are shown — for O-Level end-of-term cards this is the average of the subject totals (out of 20 + EOT out of 80), exactly as printed. *Fill empty comments* writes a suggestion from the **Comment Bank** into every empty box (classmates get different wording; `{name}` becomes the first name); *↻* gives another suggestion for one student. Choose conduct from the list (Excellent … Poor) or type your own. Edit freely, then *Save* — only changed students are saved, and existing comments are never overwritten by *Fill*. Class teachers write the class-teacher column for their own stream; the headteacher and DOS their own columns.
+
+**Comment Bank (Academics → Comment Bank):** the ready-made comments for class teachers, the headteacher and the DOS, each with a score range (e.g. 80–89.99 %). The headteacher, DOS and administrator can add, edit, switch off or delete comments.
+
 ## Director of Studies
 
 **Entering scores for a teacher:** Academics → Enter Scores → *Activity scores* or *End of term scores* → **1. Teacher (staff) → 2. Class → 3. Subject → 4. Term → 5. Year**. Only that teacher's allocated classes and subjects are listed, and that teacher's name is printed as the subject teacher on the report card. (The system administrator and anyone with the "enter marks for any class" permission work the same way.)

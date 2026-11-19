@@ -288,6 +288,29 @@ async function main() {
   ];
   for (const [code, name, channel, subject, body] of templates) await prisma.messageTemplate.upsert({ where: { code }, update: {}, create: { code, name, channel, subject, body } });
 
+  // ---- Report-card comment bank (only when empty, so the school's own edits are kept) ----
+  if ((await prisma.commentTemplate.count()) === 0) {
+    const bank: [string, number, number, string[]][] = [
+      ["CLASS_TEACHER", 90, 100, ["Exceptional work, {name}. Keep up this excellent standard.", "{name} has shown outstanding mastery this term. Well done."]],
+      ["CLASS_TEACHER", 80, 89.99, ["Very good performance, {name}. Aim even higher next term.", "{name} works hard and achieves very good results. Keep it up."]],
+      ["CLASS_TEACHER", 60, 79.99, ["Good effort, {name}. With more practice you can reach the top grades.", "Satisfactory work. {name} should revise weaker subjects consistently."]],
+      ["CLASS_TEACHER", 50, 59.99, ["Fair performance. {name} needs to put in more effort and ask for help early.", "{name} has basic understanding; more serious revision is needed."]],
+      ["CLASS_TEACHER", 0, 49.99, ["{name} must work much harder. Please see the class teacher with your parent.", "Below expectations. {name} needs close support and regular revision."]],
+      ["HEADTEACHER", 90, 100, ["Excellent results. Keep shining.", "Outstanding achievement. Congratulations."]],
+      ["HEADTEACHER", 80, 89.99, ["Very good work. Keep the focus.", "Commendable performance. Keep it up."]],
+      ["HEADTEACHER", 60, 79.99, ["Good work; there is room for improvement.", "Satisfactory. Aim higher next term."]],
+      ["HEADTEACHER", 50, 59.99, ["Fair. More effort is required.", "You can do better. Work harder."]],
+      ["HEADTEACHER", 0, 49.99, ["Poor performance. Serious improvement is needed.", "Below average. Parent and student should meet the class teacher."]],
+      ["DOS", 90, 100, ["Excellent academic performance."]],
+      ["DOS", 80, 89.99, ["Very good results. Maintain the effort."]],
+      ["DOS", 60, 79.99, ["Good. Focus on the weaker subjects."]],
+      ["DOS", 50, 59.99, ["Fair. Needs more consistent revision."]],
+      ["DOS", 0, 49.99, ["Weak results. Requires academic support."]],
+    ];
+    await prisma.commentTemplate.createMany({ data: bank.flatMap(([role, minScore, maxScore, texts]) => texts.map((text) => ({ role, minScore, maxScore, text }))) });
+    console.log("Report-card comment bank created.");
+  }
+
   console.log("Seed complete.");
 }
 

@@ -1616,3 +1616,16 @@ model LeavingRecord {
   issuedAt          DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
+
+/// Comment bank for report cards: suggestions per role and score range ({name} = student's first name).
+model CommentTemplate {
+  id        String   @id @default(cuid())
+  role      String // CLASS_TEACHER | HEADTEACHER | DOS
+  minScore  Decimal  @db.Decimal(5, 2)
+  maxScore  Decimal  @db.Decimal(5, 2)
+  text      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([role, minScore])
+}
