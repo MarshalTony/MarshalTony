@@ -30,6 +30,8 @@ Everything above, plus: write **class-teacher comments** and conduct for your st
 
 Set up examinations, approve or return mark sheets, correct approved marks (with a reason), generate and publish results, view rankings (best 12 per class, best 3 per stream), subject analysis and broadsheets, write DOS comments, print report cards, manage timetables, the academic calendar and UNEB candidate records. See ADMIN_MANUAL.md → *Termly cycle*.
 
+**Results analysis (Examinations → exam → Analysis, per class):** compared by default with the previous exam (change it, or choose *No comparison*). Shows candidates, class average and change, pass rate, boys vs girls, stream averages, grade spread; a **subject × stream table** with each subject teacher's name, colour-coded (green 70 %+, amber pass–69 %, red below the pass mark), the change since the comparison exam and boys/girls averages; **teacher averages** over the classes they teach; **most improved** and **biggest drops**; and **students at risk** (average below the pass mark, below the pass mark in N or more subjects, or a drop of N points — all adjustable). *PDF for staff meeting* prints the same in landscape.
+
 ## Bursar
 
 * **Receive a payment:** School Fees → search the student → enter amount, method and the bank/MoMo/cheque reference → *Record payment & issue receipt* → *Print receipt*.

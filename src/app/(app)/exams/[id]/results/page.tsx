@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Download } from "lucide-react";
+import { BarChart3, Download } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePage } from "@/server/auth";
 import { loadRule } from "@/server/exams/results";
@@ -51,6 +51,7 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
       <PageHeader title={`Results — ${cls.name}`} description={`${exam.name} · ranked by ${basisLabel.toLowerCase()} · ties share a position`} actions={
         <>
           <Button asChild variant="outline"><Link href={`/exams/${id}`}>Back to exam</Link></Button>
+          <Button asChild><Link href={`/exams/${id}/analysis?classId=${classId}`}><BarChart3 />Analysis</Link></Button>
           <Button asChild variant="outline"><a href={`${base}&format=xlsx`}><Download />Broadsheet Excel</a></Button>
           <Button asChild variant="outline"><a href={`${base}&format=pdf`} target="_blank"><Download />Broadsheet PDF</a></Button>
         </>

@@ -74,6 +74,7 @@ export default async function ExamDetail({ params }: { params: Promise<{ id: str
                   <CardTitle>{c.name}</CardTitle>
                   <div className="flex flex-wrap gap-1">
                     {exam._count.results > 0 && can(user, "results.view") && <Button asChild size="sm" variant="secondary"><Link href={`/exams/${exam.id}/results?classId=${c.id}`}><BarChart3 />Results</Link></Button>}
+                    {exam._count.results > 0 && can(user, "results.view") && <Button asChild size="sm" variant="outline"><Link href={`/exams/${exam.id}/analysis?classId=${c.id}`}>Analysis</Link></Button>}
                     {manage && (
                       <FormDialog trigger="Subjects & max marks" title={`${c.name}: subjects in this exam`} action={saveExamSubjects} triggerVariant="outline" triggerSize="sm" wide>
                         <input type="hidden" name="examId" value={exam.id} />
