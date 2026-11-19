@@ -7,6 +7,7 @@ import { classTree } from "@/server/queries/lookups";
 import { Button } from "@/components/ui/button";
 import { Alert, PageHeader, StatusBadge } from "@/components/ui/card";
 import { StudentFilters } from "@/components/student-filters";
+import { PrintListDialog } from "@/components/print-list-dialog";
 import { Pagination, SortTH, Table, THead, TH, TR, TD, hrefWith, pageParams, sortParams, sp, type SP } from "@/components/data-table";
 import { studentName } from "@/lib/utils";
 import { MISSING_OPTIONS, studentWhere } from "@/server/queries/students";
@@ -47,6 +48,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         description="Search and filter the student register. The Excel export uses the same filters."
         actions={
           <>
+            <PrintListDialog total={total} canContacts={can(user, "students.manage", "guardians.manage") || can(user, "attendance.take")} />
             <Button asChild variant="outline"><a href={hrefWith("/api/export/students", params, {})}><Download />Export Excel</a></Button>
             {can(user, "students.import") && <Button asChild variant="outline"><Link href="/imports?kind=students"><Upload />Import</Link></Button>}
             {manage && <Button asChild variant="outline"><Link href={`/students/photos${sp(params, "classId") ? `?classId=${sp(params, "classId")}` : ""}`}><Camera />Photos</Link></Button>}
