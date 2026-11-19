@@ -7,7 +7,7 @@ export default async function AcademicsLayout({ children }: { children: React.Re
   return (
     <>
       <PageHeader title="Classes & subjects" description="Subjects, A-Level combinations and teacher allocations. Classes and streams are set up in Settings." />
-      <Tabs tabs={[{ href: "/academics", label: "Subjects & combinations" }, { href: "/academics/allocations", label: "Teacher allocations" }]} />
+      <Tabs tabs={[{ href: "/academics", label: "Subjects & combinations" }, { href: "/academics/grid", label: "Allocation grid" }, { href: "/academics/allocations", label: "Teacher allocations (list)" }]} />
       {children}
     </>
   );

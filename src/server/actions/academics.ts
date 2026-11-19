@@ -138,3 +138,69 @@ export const deleteCalendarEvent = action(
     return { ok: true, message: "Event deleted." };
   },
 );
+
+const gridPayload = z.object({
+  cells: z.array(z.object({ subjectId: zs.id(), streamId: zs.id(), staffId: z.string().max(40) })).max(2000),
+  classTeachers: z.array(z.object({ streamId: zs.id(), staffId: z.string().max(40) })).max(50),
+});
+
+/**
+ * Allocation grid (one class, one year): each changed cell sets exactly one teacher for that subject × stream
+ * (replacing whoever was there; empty = nobody). Class teachers per stream are saved too. Only changed cells are sent.
+ */
+export const saveAllocationGrid = action(
+  { permission: "academics.manage", revalidate: "/academics", schema: z.object({ classId: zs.id(), academicYearId: zs.id(), payload: z.string().max(500_000) }) },
+  async ({ classId, academicYearId, payload }, user) => {
+    let parsed: unknown;
+    try { parsed = JSON.parse(payload); } catch { throw new UserError("Could not read the changes. Reload the page and try again."); }
+    const { cells, classTeachers } = gridPayload.parse(parsed);
+    if (!cells.length && !classTeachers.length) return { ok: true, message: "No changes to save." };
+    const result = await prisma.$transaction(async (tx) => {
+      const cls = await tx.schoolClass.findUniqueOrThrow({ where: { id: classId }, include: { streams: true } });
+      await tx.academicYear.findUniqueOrThrow({ where: { id: academicYearId } });
+      const streamIds = new Set(cls.streams.map((s) => s.id));
+      const subjectIds = new Set((await tx.subject.findMany({ where: { level: cls.level }, select: { id: true } })).map((s) => s.id));
+      const staffIds = new Set([...cells, ...classTeachers].map((c) => c.staffId).filter(Boolean));
+      const okStaff = new Set((await tx.staff.findMany({ where: { id: { in: [...staffIds] } }, select: { id: true } })).map((s) => s.id));
+      let added = 0, removed = 0;
+      for (const c of cells) {
+        if (!streamIds.has(c.streamId) || !subjectIds.has(c.subjectId)) throw new UserError("A subject or stream does not belong to this class. Reload the page.");
+        if (c.staffId && !okStaff.has(c.staffId)) throw new UserError("Unknown teacher. Reload the page.");
+        const del = await tx.teacherAllocation.deleteMany({ where: { subjectId: c.subjectId, streamId: c.streamId, academicYearId, ...(c.staffId ? { staffId: { not: c.staffId } } : {}) } });
+        removed += del.count;
+        if (c.staffId) {
+          const exists = await tx.teacherAllocation.findUnique({ where: { staffId_subjectId_streamId_academicYearId: { staffId: c.staffId, subjectId: c.subjectId, streamId: c.streamId, academicYearId } } });
+          if (!exists) { await tx.teacherAllocation.create({ data: { staffId: c.staffId, subjectId: c.subjectId, streamId: c.streamId, academicYearId } }); added++; }
+        }
+      }
+      for (const ct of classTeachers) {
+        if (!streamIds.has(ct.streamId)) throw new UserError("A stream does not belong to this class. Reload the page.");
+        if (ct.staffId && !okStaff.has(ct.staffId)) throw new UserError("Unknown teacher. Reload the page.");
+        await tx.stream.update({ where: { id: ct.streamId }, data: { classTeacherId: ct.staffId || null } });
+      }
+      await audit(user.id, "ALLOCATION_GRID", "SchoolClass", classId, { academicYearId, cells, classTeachers, added, removed }, tx);
+      return { added, removed };
+    }, { timeout: 60_000 });
+    const parts = [result.added && `${result.added} allocation(s) added`, result.removed && `${result.removed} removed`, classTeachers.length && `${classTeachers.length} class teacher(s) set`].filter(Boolean);
+    return { ok: true, message: parts.length ? `Saved: ${parts.join(", ")}.` : "Saved." };
+  },
+);
+
+/** Copies one class's allocations from another year into empty cells of the same streams (staff who have left are skipped). */
+export const copyAllocations = action(
+  { permission: "academics.manage", revalidate: "/academics", schema: z.object({ classId: zs.id(), fromYearId: zs.id(), toYearId: zs.id() }) },
+  async ({ classId, fromYearId, toYearId }, user) => {
+    if (fromYearId === toYearId) throw new UserError("Choose a different year to copy from.");
+    const cls = await prisma.schoolClass.findUniqueOrThrow({ where: { id: classId }, include: { streams: true } });
+    const ids = cls.streams.map((s) => s.id);
+    const [from, existing] = await Promise.all([
+      prisma.teacherAllocation.findMany({ where: { academicYearId: fromYearId, streamId: { in: ids }, staff: { status: "ACTIVE" } } }),
+      prisma.teacherAllocation.findMany({ where: { academicYearId: toYearId, streamId: { in: ids } } }),
+    ]);
+    const taken = new Set(existing.map((a) => `${a.subjectId}:${a.streamId}`));
+    const data = from.filter((a) => !taken.has(`${a.subjectId}:${a.streamId}`)).map((a) => ({ staffId: a.staffId, subjectId: a.subjectId, streamId: a.streamId, academicYearId: toYearId }));
+    if (data.length) await prisma.teacherAllocation.createMany({ data, skipDuplicates: true });
+    await audit(user.id, "ALLOCATIONS_COPIED", "SchoolClass", classId, { fromYearId, toYearId, count: data.length });
+    return { ok: true, message: data.length ? `Copied ${data.length} allocation(s) into empty cells.` : "Nothing to copy — every cell already has a teacher, or last year has no allocations for this class." };
+  },
+);
