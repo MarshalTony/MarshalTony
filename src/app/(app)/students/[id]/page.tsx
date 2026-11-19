@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FileText, IdCard, Pencil, Printer, Trash2 } from "lucide-react";
+import { FileText, IdCard, Pencil, Printer, Trash2, LogOut } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
 import {
@@ -50,6 +50,7 @@ export default async function StudentProfile({ params }: { params: Promise<{ id:
             <Button asChild variant="outline"><a href={`/api/pdf/admission-form/${s.id}`} target="_blank"><Printer />Admission form</a></Button>
             <Button asChild variant="outline"><a href={`/api/pdf/id-cards?studentId=${s.id}`} target="_blank"><IdCard />ID card</a></Button>
             {can(user, "fees.view") && <Button asChild variant="outline"><Link href={`/fees/students/${s.id}`}><FileText />Fees account</Link></Button>}
+            <Button asChild variant="outline"><Link href={`/students/${s.id}/leaving`}><LogOut />Leaving & clearance</Link></Button>
             {manage && <Button asChild><Link href={`/students/${s.id}/edit`}><Pencil />Edit</Link></Button>}
             {manage && <ConfirmAction action={deleteStudent} fields={{ id: s.id, fromProfile: "true" }} label="Delete" variant="destructive" size="default" icon={<Trash2 />}
               confirm={`Permanently delete ${studentName(s)} (${s.admissionNo})? Only use this for a record entered by mistake. Students with marks, fees, attendance or other history cannot be deleted — use Change status instead.`} />}

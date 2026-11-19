@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
-import { Download, Upload, UserPlus, ArrowUpCircle, Table2, Camera } from "lucide-react";
+import { Download, Upload, UserPlus, ArrowUpCircle, Table2, Camera, ClipboardCheck } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
 import { classTree } from "@/server/queries/lookups";
@@ -53,6 +53,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             {can(user, "students.import") && <Button asChild variant="outline"><Link href="/imports?kind=students"><Upload />Import</Link></Button>}
             {manage && <Button asChild variant="outline"><Link href={`/students/photos${sp(params, "classId") ? `?classId=${sp(params, "classId")}` : ""}`}><Camera />Photos</Link></Button>}
             {manage && <Button asChild variant="outline"><Link href={`/students/bulk${sp(params, "classId") ? `?classId=${sp(params, "classId")}` : ""}`}><Table2 />Bulk edit</Link></Button>}
+            <Button asChild variant="outline"><Link href={`/students/clearance${sp(params, "classId") ? `?classId=${sp(params, "classId")}` : ""}`}><ClipboardCheck />Clearance</Link></Button>
             {manage && <Button asChild variant="secondary"><Link href="/students/promote"><ArrowUpCircle />Promote</Link></Button>}
             {manage && <Button asChild><Link href="/students/new"><UserPlus />Register student</Link></Button>}
           </>

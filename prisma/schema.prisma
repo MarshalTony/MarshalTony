@@ -448,6 +448,8 @@ model Student {
   updatedAt             DateTime      @updatedAt
 
   guardians       StudentGuardian[]
+  clearances      StudentClearance[]
+  leavingRecord   LeavingRecord?
   enrollments     Enrollment[]
   subjects        StudentSubject[]
   marks           Mark[]
@@ -1583,4 +1585,34 @@ model CompetencyRemark {
   updatedAt   DateTime @updatedAt
 
   @@unique([termId, studentId, subjectId])
+}
+
+/// Leaving clearance: one sign-off per office (BURSAR, LIBRARY, STORES, DISCIPLINE, CLASS_TEACHER).
+model StudentClearance {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  office      String
+  clearedById String
+  clearedAt   DateTime @default(now())
+  note        String?
+
+  @@unique([studentId, office])
+}
+
+/// Issued when a student leaves: basis of the leaving certificate / testimonial and transfer letter.
+model LeavingRecord {
+  id                String   @id @default(cuid())
+  studentId         String   @unique
+  student           Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  certificateNo     String   @unique
+  leavingDate       DateTime @db.Date
+  reason            String // COMPLETED | TRANSFERRED | WITHDRAWN | EXPELLED
+  lastClass         String
+  conduct           String
+  remarks           String?
+  destinationSchool String?
+  issuedById        String
+  issuedAt          DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
