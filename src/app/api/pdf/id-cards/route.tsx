@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     where: studentId ? { id: studentId } : { streamId: streamId!, status: "ACTIVE" },
     include: { schoolClass: true, stream: true }, orderBy: { lastName: "asc" },
   });
-  const [b, photos, year] = await Promise.all([loadBranding(), photoBuffers(students.map((s) => s.photoFileId)), prisma.academicYear.findFirst({ where: { isCurrent: true } })]);
+  const [b, photos, year] = await Promise.all([loadBranding(), photoBuffers(students.map((s) => s.photoFileId), { maxPx: 400 }), prisma.academicYear.findFirst({ where: { isCurrent: true } })]);
   const W = 242.6, H = 153; // 85.6 × 54 mm
   const doc = (
     <Document title="Student ID cards">

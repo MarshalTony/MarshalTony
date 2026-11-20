@@ -23,7 +23,7 @@ export async function renderReportCards(examId: string, studentIds: string[], ge
   const att = await prisma.studentAttendance.groupBy({
     by: ["studentId", "status"], where: { studentId: { in: studentIds }, date: { gte: exam.term.startDate, lte: exam.term.endDate } }, _count: true,
   });
-  const photos = tpl.showPhoto ? await photoBuffers(results.map((r) => r.student.photoFileId)) : new Map();
+  const photos = tpl.showPhoto ? await photoBuffers(results.map((r) => r.student.photoFileId), { maxPx: 300 }) : new Map();
   const levels = [...new Set(results.map((r) => r.student.schoolClass.level))];
   const rules = Object.fromEntries(await Promise.all(levels.map(async (l) => [l, await loadRule(l)] as const)));
   const scales = Object.fromEntries(await Promise.all(levels.map(async (l) => [l, await loadScales(l)] as const)));

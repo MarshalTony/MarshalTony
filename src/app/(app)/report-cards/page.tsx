@@ -1,66 +1,34 @@
 import { prisma } from "@/lib/db";
 import { requirePage } from "@/server/auth";
-import { FilterBar } from "@/components/filters";
-import { Button } from "@/components/ui/button";
-import { Alert, Card, CardContent, CardHeader, CardTitle, PageHeader, StatusBadge } from "@/components/ui/card";
-import { Table, THead, TH, TR, TD, sp, type SP } from "@/components/data-table";
-import { FileText } from "lucide-react";
-import { ordinal, studentName } from "@/lib/utils";
-import { resultsReadiness } from "@/server/exams/readiness";
-import { ensureFreshResults } from "@/server/exams/approval";
-import { ResultsReadinessAlert } from "@/components/results-readiness";
+import { ReportCardPicker } from "@/components/report-card-picker";
+import { Alert, PageHeader } from "@/components/ui/card";
 
 export const metadata = { title: "Report cards" };
 
-export default async function ReportCardsPage({ searchParams }: { searchParams: Promise<SP> }) {
+export default async function ReportCardsPage() {
   await requirePage("reportcards.generate");
-  const params = await searchParams;
-  const exams = await prisma.exam.findMany({
-    where: { OR: [{ resultsGeneratedAt: { not: null } }, { isComposite: false, marks: { some: {} } }] }, include: { term: { include: { academicYear: true } }, classes: { include: { schoolClass: { include: { streams: { orderBy: { name: "asc" } } } } } } },
-    orderBy: [{ term: { startDate: "desc" } }, { createdAt: "desc" }],
-  });
-  const exam = exams.find((e) => e.id === sp(params, "examId")) ?? exams[0];
-  const streams = exam ? exam.classes.flatMap((c) => c.schoolClass.streams.map((s) => ({ id: s.id, label: `${c.schoolClass.code} ${s.name}` }))) : [];
-  const streamId = sp(params, "streamId");
-  // Without DOS approval, bring results up to date with the latest saved marks before listing them.
-  if (exam) await ensureFreshResults(exam.id).catch(() => false);
-  const readiness = exam ? await resultsReadiness(exam.id) : null;
-  const results = exam && streamId ? await prisma.examResult.findMany({ where: { examId: exam.id, streamId }, include: { student: true }, orderBy: { streamPosition: { sort: "asc", nulls: "last" } } }) : [];
+  const [years, terms, exams, classes] = await Promise.all([
+    prisma.academicYear.findMany({ orderBy: { startDate: "desc" } }),
+    prisma.term.findMany({ orderBy: { startDate: "asc" } }),
+    prisma.exam.findMany({
+      include: { examType: true, classes: true, _count: { select: { marks: true, results: true } } },
+      orderBy: [{ examType: { order: "desc" } }, { createdAt: "desc" }],
+    }),
+    prisma.schoolClass.findMany({ where: { isActive: true }, include: { streams: { where: { isActive: true }, orderBy: { name: "asc" } } }, orderBy: { order: "asc" } }),
+  ]);
   return (
     <>
-      <PageHeader title="Report cards" description="Individual and bulk PDF report cards. Historical exams remain available. Configure the layout in Settings → School profile." />
-      {!exam ? <Alert>No examination has generated results yet.</Alert> : (
-        <>
-          <FilterBar filters={[
-            { name: "examId", label: "Exam", allowAll: false, value: exam.id, options: exams.map((e) => ({ value: e.id, label: `${e.term.academicYear.name} ${e.term.name} — ${e.name}` })) },
-            { name: "streamId", label: "Stream", options: streams.map((s) => ({ value: s.id, label: s.label })) },
-          ]} />
-          {readiness && <ResultsReadinessAlert r={readiness} examHref={`/exams/${exam.id}`} />}
-          <Card className="mb-5">
-            <CardHeader><CardTitle>{exam.name}</CardTitle><StatusBadge status={exam.status} /></CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              {exam.classes.map((c) => (
-                <Button key={c.classId} asChild variant="outline" size="sm"><a href={`/api/pdf/report-card?examId=${exam.id}&classId=${c.classId}`} target="_blank"><FileText />All {c.schoolClass.name}</a></Button>
-              ))}
-              {streams.map((s) => (
-                <Button key={s.id} asChild variant="secondary" size="sm"><a href={`/api/pdf/report-card?examId=${exam.id}&streamId=${s.id}`} target="_blank"><FileText />{s.label}</a></Button>
-              ))}
-            </CardContent>
-          </Card>
-          {streamId && (
-            <Table>
-              <THead><tr><TH>Pos.</TH><TH>Student</TH><TH>Average</TH><TH /></tr></THead>
-              <tbody>
-                {results.map((r) => (
-                  <TR key={r.id}>
-                    <TD>{ordinal(r.streamPosition)}</TD><TD>{studentName(r.student)}</TD><TD>{Number(r.average).toFixed(1)}%</TD>
-                    <TD className="text-right"><a className="text-sm text-brand-700 hover:underline" href={`/api/pdf/report-card?examId=${exam.id}&studentId=${r.studentId}`} target="_blank">Report card</a></TD>
-                  </TR>
-                ))}
-              </tbody>
-            </Table>
-          )}
-        </>
+      <PageHeader
+        title="Report cards"
+        description="Choose the year, term and report, then a class (or one stream), and generate. Or find one student. O-Level end-of-term cards use the school's two-page competency format; others use the standard layout (Settings → School profile)."
+      />
+      {!years.length ? <Alert tone="warn">Set up the academic year and terms first (Settings → Years & terms).</Alert> : (
+        <ReportCardPicker
+          years={years.map((y) => ({ id: y.id, name: y.name, isCurrent: y.isCurrent }))}
+          terms={terms.map((t) => ({ id: t.id, name: t.name, yearId: t.academicYearId, isCurrent: t.isCurrent }))}
+          exams={exams.map((e) => ({ id: e.id, name: e.name, termId: e.termId, typeCode: e.examType.code, classIds: e.classes.map((c) => c.classId), ready: e._count.results > 0 || e._count.marks > 0 }))}
+          classes={classes.map((c) => ({ id: c.id, name: c.name, streams: c.streams.map((s) => ({ id: s.id, name: s.name })) }))}
+        />
       )}
     </>
   );

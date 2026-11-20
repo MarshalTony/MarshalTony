@@ -48,7 +48,7 @@ function cellText(st: ListStudent, c: Column): string {
 export async function renderClassList(students: ListStudent[], o: ListOptions) {
   const b = await loadBranding();
   const wantPhotos = o.layout === "photos" || (o.layout === "nominal" && o.columns.includes("photo"));
-  const photos = wantPhotos ? await photoBuffers(students.map((x) => x.photoFileId)) : new Map<string, Buffer>();
+  const photos = wantPhotos ? await photoBuffers(students.map((x) => x.photoFileId), { maxPx: 300 }) : new Map<string, Buffer>();
   const boys = students.filter((x) => x.gender === "MALE").length;
   const girls = students.length - boys;
   const orientation = o.landscape ? "landscape" : "portrait";

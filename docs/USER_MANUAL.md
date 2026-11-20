@@ -32,6 +32,8 @@ Set up examinations, approve or return mark sheets, correct approved marks (with
 
 **Results analysis (Examinations → exam → Analysis, per class):** compared by default with the previous exam (change it, or choose *No comparison*). Shows candidates, class average and change, pass rate, boys vs girls, stream averages, grade spread; a **subject × stream table** with each subject teacher's name, colour-coded (green 70 %+, amber pass–69 %, red below the pass mark), the change since the comparison exam and boys/girls averages; **teacher averages** over the classes they teach; **most improved** and **biggest drops**; and **students at risk** (average below the pass mark, below the pass mark in N or more subjects, or a drop of N points — all adjustable). *PDF for staff meeting* prints the same in landscape.
 
+**Report cards (Academics → Report Cards):** choose **1. Year → 2. Term → 3. Report** (the examination, e.g. End of Term), then **4. Class → 5. Stream** (or *All streams*) and *Generate report cards* — one PDF for the class or stream opens in a new tab. For a single student, type a name or admission number under **One student**, pick them and *Generate report card* (students who have left can still be found for past reports). Latest saved marks are included automatically; *Comments* and *Analysis* links open those pages for the chosen class.
+
 ## Bursar
 
 * **Receive a payment:** School Fees → search the student → enter amount, method and the bank/MoMo/cheque reference → *Record payment & issue receipt* → *Print receipt*.
