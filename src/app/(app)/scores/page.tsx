@@ -12,7 +12,7 @@ export const metadata = { title: "Enter scores" };
 
 const TYPES = {
   activity: { label: "Activity scores", short: "Activities of Integration", hint: "Score each chapter / theme out of 3 during the term (O-Level). Becomes the mark out of 20 on the report." },
-  eot: { label: "End of term scores", short: "End of term exam", hint: "Marks for the end-of-term paper (out of 80 for O-Level). Saved marks go straight onto the report card." },
+  eot: { label: "Exam scores", short: "Examination", hint: "Marks for the term's examinations — beginning of term, mid-term or end of term (O-Level EOT out of 80). Saved marks go straight onto the report card." },
 } as const;
 type ScoreType = keyof typeof TYPES;
 
@@ -69,12 +69,17 @@ export default async function ScoresPage({ searchParams }: { searchParams: Promi
     { name: "termId", label: "Term", placeholder: "Select term", value: term.id, resets: ["examId"], options: terms.map((t) => ({ value: t.id, label: `${t.name}${t.isCurrent ? " (current)" : ""}` })) },
     { name: "yearId", label: "Year", placeholder: "Select year", value: year.id, resets: ["termId", "streamId", "subjectId", "examId"], options: years.map((y) => ({ value: y.id, label: `${y.name}${y.isCurrent ? " (current)" : ""}` })) },
   ];
-  // End of term: find the EOT examination the DOS set up for this class and term.
+  // Exam scores: any (non-combined) examination of this term that includes the class — open ones first.
+  const STATUS_ORDER = { OPEN: 0, DRAFT: 1, CLOSED: 2, PUBLISHED: 3 } as const;
   const exams = type === "eot" && stream
-    ? await prisma.exam.findMany({ where: { termId: term.id, isComposite: false, examType: { code: "EOT" }, classes: { some: { classId: stream.classId } } }, orderBy: { createdAt: "desc" } })
+    ? (await prisma.exam.findMany({ where: { termId: term.id, isComposite: false, classes: { some: { classId: stream.classId } } }, include: { examType: true }, orderBy: { createdAt: "desc" } }))
+        .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.examType.order - a.examType.order)
     : [];
-  if (exams.length > 1) fields.push({ name: "examId", label: "Examination", placeholder: "Select examination", value: (exams.find((e) => e.id === sp(q, "examId")) ?? exams[0]).id, options: exams.map((e) => ({ value: e.id, label: e.name })) });
   const exam = exams.find((e) => e.id === sp(q, "examId")) ?? exams[0];
+  if (exams.length) fields.push({
+    name: "examId", label: "Examination", placeholder: "Select examination", value: exam?.id,
+    options: exams.map((e) => ({ value: e.id, label: `${e.name} (${e.status === "OPEN" ? "open" : e.status === "DRAFT" ? "not opened yet" : e.status.toLowerCase()})` })),
+  });
 
   let body: React.ReactNode;
   if (elevated && !staff) {
@@ -88,9 +93,9 @@ export default async function ScoresPage({ searchParams }: { searchParams: Promi
   } else if (type === "activity") {
     body = <ActivitySheet term={term} stream={{ id: stream.id, classId: stream.classId, label: `${stream.schoolClass.code} ${stream.name}` }} subject={subject} elevated={elevated} />;
   } else if (!exam) {
-    body = <Alert tone="warn">There is no end-of-term examination for {stream.schoolClass.name} in {term.name} {year.name} yet. The Director of Studies creates it under Examinations (type: End of Term) and opens it for marks entry.</Alert>;
+    body = <Alert tone="warn">There is no examination for {stream.schoolClass.name} in {term.name} {year.name} yet. The Director of Studies creates it under Examinations (and can add this class to an existing exam with Edit).</Alert>;
   } else {
-    const self = `/scores?type=eot&yearId=${year.id}&termId=${term.id}${staff ? `&staffId=${staff.id}` : ""}&streamId=${stream.id}&subjectId=${subject.id}${exams.length > 1 ? `&examId=${exam.id}` : ""}`;
+    const self = `/scores?type=eot&yearId=${year.id}&termId=${term.id}${staff ? `&staffId=${staff.id}` : ""}&streamId=${stream.id}&subjectId=${subject.id}&examId=${exam.id}`;
     body = <MarksSheet user={user} examId={exam.id} streamId={stream.id} subjectId={subject.id} correctionRequested={sp(q, "correct") === "1"} selfHref={self} />;
   }
 
