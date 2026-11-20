@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-20 — activity scores from Excel._
+_Last updated: 2026-11-20 — subject order on report cards._
 
 ## 1. What this is
 
@@ -77,7 +77,7 @@ Runtime logs are kept 1 hour. Env vars on Vercel: `DATABASE_URL` (transaction po
 
 Migrations (all additive after init): `init`, `financial_immutability`, `subject_result_status`, `stored_file_data`,
 `continuous_assessment` (LearningActivity, ActivityScore, CompetencyRemark, SchoolPay code, altEmail, band descriptions),
-`leaving_clearance` (StudentClearance, LeavingRecord), `comment_bank` (CommentTemplate).
+`leaving_clearance` (StudentClearance, LeavingRecord), `comment_bank` (CommentTemplate), `subject_report_order` (Subject.reportOrder, default 100).
 
 ## 6. Decisions agreed with the school (do not undo without asking)
 
@@ -102,7 +102,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
   attendance, mark sheet, parents' contacts, photo register — `api/pdf/class-list`), **Leaving & clearance** (`students/[id]/leaving`,
   class board `students/clearance`, PDFs `api/pdf/leaving/[id]`: clearance form, leaving certificate/testimonial, transfer, recommendation),
   promotion, transfer stream, ID cards, admission form, imports.
-- **Academics:** subjects & combinations, **Allocation grid** (`academics/grid`), allocations list, timetables, **Enter Scores**
+- **Academics:** subjects & combinations, **Report order** (`academics/order`, `Subject.reportOrder`; used by both report cards and the broadsheet), **Allocation grid** (`academics/grid`), allocations list, timetables, **Enter Scores**
   (`/scores`: Activity scores out of 3 for S1–S4 — typed or **Excel** (pre-filled template, one column per chapter; import kind `activities` with dynamic `columnsFor`); Exam scores for any exam of the term), **Comment Bank** (`/comment-bank`),
   Examinations (create/edit/delete, results, broadsheets, **Analysis** `exams/[id]/analysis` + PDF `api/reports/analysis`:
   winner, best/weakest subject, best stream, best 10/last 10 class, best 10/last 3 per stream, subject×stream with teachers,
@@ -120,9 +120,9 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 
 ## 9. Pending / next ideas (not started unless the owner asks)
 
-- **Agreed order (owner said "we go as your order"):** ✅ report readiness tracker → ✅ activity scores from Excel → **next: subject order on report cards** → combined BOT+MOT+EOT card (only if wanted) → students: results history on profile, data clean-up check, EMIS statistics, student documents.
+- **Agreed order (owner said "we go as your order"):** ✅ report readiness tracker → ✅ activity scores from Excel → ✅ subject order on report cards → combined BOT+MOT+EOT card (**only if the owner wants it — ask**) → **next: students:** results history on profile, data clean-up check, EMIS statistics, student documents.
 
 - Termly report combining BOT + MOT + EOT on one card (if wanted).
-- Report-card subject order (custom order instead of alphabetical); confirm admission-number / "Reg Number" format.
+- Confirm admission-number / "Reg Number" format on the card.
 - Other modules the owner may pick next: fees, attendance, parent portal, SMS (needs Africa's Talking keys), enrolment statistics (EMIS),
   student documents, siblings/family view, data clean-up assistant.

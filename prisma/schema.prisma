@@ -294,6 +294,8 @@ model Subject {
   weight     Decimal         @default(1) @db.Decimal(5, 2)
   hasPractical Boolean       @default(false)
   isActive   Boolean         @default(true)
+  // Position on report cards and broadsheets (lower first; equal → alphabetical). Set in Classes & Subjects → Report order.
+  reportOrder Int            @default(100)
   departmentId String?
   department Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 

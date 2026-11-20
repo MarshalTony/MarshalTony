@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Subject" ADD COLUMN     "reportOrder" INTEGER NOT NULL DEFAULT 100;

@@ -13,7 +13,7 @@ For the System Administrator, Headteacher and Director of Studies.
 |---|---|---|
 | 1 | Settings → Years & terms | Confirm the academic year and the three term dates (opening, closing, next term begins — printed on report cards). Make the correct term **current**. |
 | 2 | Settings → Classes & streams | S1–S6 exist with stream "A". Add/rename streams (e.g. A, B or East, West) and set capacities. Class teachers are set here after staff are registered. |
-| 3 | Classes & Subjects | Check subjects, categories (compulsory/elective for O-Level; principal/subsidiary for A-Level), weights and A-Level combinations. |
+| 3 | Classes & Subjects | Set the **Report order** tab (the order subjects print on report cards and broadsheets: ▲ / ▼, then *Save order*). Check subjects, categories (compulsory/elective for O-Level; principal/subsidiary for A-Level), weights and A-Level combinations. |
 | 4 | Settings → Grading & ranking | **The DOS must confirm** the grading bands and ranking rules. Seeded: O-Level competency scale A–E (average ranking) and a legacy D1–F9 scale; A-Level principal A–F (6–0 points) and subsidiary O/F (1/0); A-Level ranked by points. Ties share a position (1, 1, 3). Absent papers are left out of averages. Best 12 per class / best 3 per stream. |
 | 5 | Settings → Lists & templates | Exam types, payment methods, departments, SMS/email templates. |
 | 6 | Staff | Register staff (or import from Excel), then create login accounts from each staff profile with the right roles. |

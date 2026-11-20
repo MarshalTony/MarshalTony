@@ -18,7 +18,7 @@ export async function renderReportCards(examId: string, studentIds: string[], ge
     },
     orderBy: [{ student: { stream: { name: "asc" } } }, { streamPosition: { sort: "asc", nulls: "last" } }],
   });
-  const subjectResults = await prisma.subjectResult.findMany({ where: { examId, studentId: { in: studentIds } }, include: { subject: true }, orderBy: { subject: { name: "asc" } } });
+  const subjectResults = await prisma.subjectResult.findMany({ where: { examId, studentId: { in: studentIds } }, include: { subject: true }, orderBy: [{ subject: { reportOrder: "asc" } }, { subject: { name: "asc" } }] });
   const maxBy = new Map((await prisma.examSubject.findMany({ where: { examId } })).map((e) => [`${e.classId}:${e.subjectId}`, Number(e.maxMarks)]));
   const att = await prisma.studentAttendance.groupBy({
     by: ["studentId", "status"], where: { studentId: { in: studentIds }, date: { gte: exam.term.startDate, lte: exam.term.endDate } }, _count: true,

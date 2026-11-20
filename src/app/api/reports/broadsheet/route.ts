@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     prisma.schoolClass.findUnique({ where: { id: classId } }),
     prisma.examResult.findMany({ where: { examId, classId, ...(streamId ? { streamId } : {}) }, include: { student: { include: { stream: true } } }, orderBy: [{ classPosition: { sort: "asc", nulls: "last" } }] }),
     prisma.subjectResult.findMany({ where: { examId, student: { classId } } }),
-    prisma.examSubject.findMany({ where: { examId, classId }, include: { subject: true }, orderBy: { subject: { name: "asc" } } }),
+    prisma.examSubject.findMany({ where: { examId, classId }, include: { subject: true }, orderBy: [{ subject: { reportOrder: "asc" } }, { subject: { name: "asc" } }] }),
   ]);
   if (!exam || !cls) return new Response("Not found", { status: 404 });
   const map = new Map(subs.map((s) => [`${s.studentId}:${s.subjectId}`, s]));

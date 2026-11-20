@@ -204,3 +204,18 @@ export const copyAllocations = action(
     return { ok: true, message: data.length ? `Copied ${data.length} allocation(s) into empty cells.` : "Nothing to copy — every cell already has a teacher, or last year has no allocations for this class." };
   },
 );
+
+/** Report-card subject order for one level: `ids` in the order they should print (positions 1, 2, 3 …). */
+export const saveSubjectOrder = action(
+  { permission: "academics.manage", revalidate: "/academics", schema: z.object({ level: z.enum(["O_LEVEL", "A_LEVEL"]), ids: z.string().max(20_000) }) },
+  async ({ level, ids }, user) => {
+    let list: string[];
+    try { list = z.array(zs.id()).max(200).parse(JSON.parse(ids)); } catch { throw new UserError("Could not read the order. Reload the page and try again."); }
+    const subjects = await prisma.subject.findMany({ where: { level }, select: { id: true } });
+    const known = new Set(subjects.map((s) => s.id));
+    if (list.some((id) => !known.has(id))) throw new UserError("A subject does not belong to this level. Reload the page.");
+    await prisma.$transaction(list.map((id, i) => prisma.subject.update({ where: { id }, data: { reportOrder: i + 1 } })));
+    await audit(user.id, "SUBJECT_ORDER", "Subject", null, { level, order: list });
+    return { ok: true, message: `Report-card order saved for ${level === "O_LEVEL" ? "O-Level" : "A-Level"} (${list.length} subjects).` };
+  },
+);

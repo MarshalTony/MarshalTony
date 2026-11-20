@@ -70,7 +70,7 @@ export async function buildCbcPages(ctx: Ctx, studentIds: string[]) {
     const acts = activities.filter((a) => a.classId === classId && taken.has(a.subjectId));
     const scoreOf = new Map(st.activityScores.map((x) => [x.activityId, Number(x.score)]));
     const subjectIds = [...new Set([...st.subjectResults.map((r) => r.subjectId), ...acts.map((a) => a.subjectId)])].filter((id) => taken.has(id));
-    const subjects = subjectIds.map((id) => taken.get(id)!).sort((x, y) => x.name.localeCompare(y.name));
+    const subjects = subjectIds.map((id) => taken.get(id)!).sort((x, y) => x.reportOrder - y.reportOrder || x.name.localeCompare(y.name));
     const teacher = (subjectId: string) => {
       const names = allocations.filter((x) => x.subjectId === subjectId && x.streamId === streamId).map((a) => `${a.staff.lastName} ${a.staff.firstName}`.toUpperCase());
       return [...new Set(names)].join(" / ");
