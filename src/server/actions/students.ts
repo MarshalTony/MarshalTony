@@ -414,3 +414,35 @@ export const removeStudentPhoto = action(
     return { ok: true, message: "Photo removed." };
   },
 );
+
+/** Data check: give every active student with no subjects this year their class's default subjects (O-Level compulsory; A-Level from the combination). */
+export const fixMissingSubjects = action(
+  { permission: "students.manage", revalidate: "/students", schema: z.object({}) },
+  async (_d, user) => {
+    const year = await currentYearOrThrow(prisma);
+    const list = await prisma.student.findMany({ where: { status: "ACTIVE", subjects: { none: { academicYearId: year.id } } }, select: { id: true, classId: true, combinationId: true } });
+    let fixed = 0, skipped = 0;
+    await prisma.$transaction(async (tx) => {
+      for (const s of list) {
+        const ids = await defaultSubjectIds(tx, s.classId, s.combinationId);
+        if (!ids.length) { skipped++; continue; }
+        await tx.studentSubject.createMany({ data: ids.map((subjectId) => ({ studentId: s.id, subjectId, academicYearId: year.id })), skipDuplicates: true });
+        fixed++;
+      }
+      await audit(user.id, "DATA_FIX_SUBJECTS", "Student", null, { fixed, skipped, year: year.name }, tx);
+    }, { timeout: 60_000 });
+    return { ok: true, message: `${fixed} student(s) given their class's default subjects.${skipped ? ` ${skipped} A-Level student(s) need a combination first.` : ""} Add electives in Bulk edit.` };
+  },
+);
+
+/** Data check: create this year's enrolment record (class and stream) for active students who have none. */
+export const fixMissingEnrollments = action(
+  { permission: "students.manage", revalidate: "/students", schema: z.object({}) },
+  async (_d, user) => {
+    const year = await currentYearOrThrow(prisma);
+    const list = await prisma.student.findMany({ where: { status: "ACTIVE", enrollments: { none: { academicYearId: year.id } } }, select: { id: true, classId: true, streamId: true } });
+    if (list.length) await prisma.enrollment.createMany({ data: list.map((s) => ({ studentId: s.id, academicYearId: year.id, classId: s.classId, streamId: s.streamId })), skipDuplicates: true });
+    await audit(user.id, "DATA_FIX_ENROLMENTS", "Student", null, { created: list.length, year: year.name });
+    return { ok: true, message: `${list.length} enrolment record(s) created for ${year.name}.` };
+  },
+);
