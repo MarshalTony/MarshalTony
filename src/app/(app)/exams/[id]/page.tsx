@@ -128,8 +128,8 @@ export default async function ExamDetail({ params }: { params: Promise<{ id: str
                                     {exam.isComposite ? <span className="text-xs text-slate-400">calculated</span> : (
                                       <div className="space-y-1">
                                         <Link className="block text-xs text-brand-700 hover:underline" href={`/exams/${exam.id}/marks?streamId=${st.id}&subjectId=${es.subjectId}`}>{n} marks</Link>
-                                        <StatusBadge status={sub?.status ?? "NOT STARTED"} />
-                                        {approve && sub?.status === "SUBMITTED" && (
+                                        {readiness.approvalRequired && <StatusBadge status={sub?.status ?? "NOT STARTED"} />}
+                                        {readiness.approvalRequired && approve && sub?.status === "SUBMITTED" && (
                                           <div className="flex gap-1">
                                             <ConfirmAction action={reviewMarks} fields={{ submissionId: sub.id, decision: "APPROVED" }} label="Approve" variant="success" />
                                             <FormDialog trigger="Return" title="Return marks for correction" action={reviewMarks} triggerVariant="outline" triggerSize="sm">
@@ -139,7 +139,7 @@ export default async function ExamDetail({ params }: { params: Promise<{ id: str
                                             </FormDialog>
                                           </div>
                                         )}
-                                        {sub?.reviewNote && <p className="text-xs text-red-700">{sub.reviewNote}</p>}
+                                        {readiness.approvalRequired && sub?.reviewNote && <p className="text-xs text-red-700">{sub.reviewNote}</p>}
                                       </div>
                                     )}
                                   </td>

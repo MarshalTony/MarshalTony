@@ -45,10 +45,11 @@ export default async function ExamsPage({ searchParams }: { searchParams: Promis
       <PageHeader title="Examinations" description="BOT, MOT, EOT, mock and combined (weighted) examinations." actions={can(user, "exams.manage") && (
         <FormDialog trigger="New examination" title="New examination" action={createExam} wide>
           <TextField label="Name" name="name" required placeholder="Term 3 End of Term Examinations 2026" />
-          <Grid cols={3}>
+          <Grid cols={2}>
             <SelectField label="Type" name="examTypeId" required options={types.map((t) => ({ value: t.id, label: t.name }))} />
             <SelectField label="Term" name="termId" required defaultValue={current?.id} options={terms.map((t) => ({ value: t.id, label: `${t.academicYear.name} ${t.name}` }))} />
-            <TextField label="Default maximum mark" name="maxMarks" type="number" defaultValue="100" />
+            <TextField label="Max mark — O-Level (S1–S4)" name="maxMarks" type="number" defaultValue="100" hint="End of term: 80 (activities add 20)" />
+            <TextField label="Max mark — A-Level (S5–S6)" name="maxMarksA" type="number" defaultValue="100" hint="No activities of integration" />
             <TextField label="Start date" name="startDate" type="date" />
             <TextField label="End date" name="endDate" type="date" />
           </Grid>
@@ -57,6 +58,7 @@ export default async function ExamsPage({ searchParams }: { searchParams: Promis
             <div className="flex flex-wrap gap-3">{classes.map((c) => <label key={c.id} className="flex items-center gap-1.5 text-sm"><input type="checkbox" name="classIds[]" value={c.id} />{c.name}</label>)}</div>
           </fieldset>
           <CheckboxField name="autoSubjects" label="Add every subject the students take (recommended)" defaultChecked />
+          <CheckboxField name="openNow" label="Open for marks entry now — teachers can enter marks straight away" defaultChecked />
           <details className="rounded border border-slate-200 p-3">
             <summary className="cursor-pointer text-sm font-medium">Combined exam (examination formula)</summary>
             <p className="my-2 text-xs text-slate-500">e.g. Term final = 20% BOT + 20% MOT + 60% EOT. Marks are calculated from the component exams&apos; percentages; nothing is entered for the combined exam itself.</p>

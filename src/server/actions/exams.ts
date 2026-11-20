@@ -14,10 +14,12 @@ export const createExam = action(
     revalidate: "/exams",
     schema: z.object({
       name: zs.str(120), examTypeId: zs.id(), termId: zs.id(), classIds: zs.ids(), startDate: zs.optDate(), endDate: zs.optDate(),
-      isComposite: zs.bool(), componentIds: zs.ids(), autoSubjects: zs.bool(), maxMarks: z.coerce.number().positive().max(1000).default(100),
+      isComposite: zs.bool(), componentIds: zs.ids(), autoSubjects: zs.bool(), openNow: zs.bool(),
+      // O-Level end-of-term papers are usually out of 80 (activities add 20); A-Level has no activities, so out of 100.
+      maxMarks: z.coerce.number().positive().max(1000).default(100), maxMarksA: z.coerce.number().positive().max(1000).default(100),
     }),
   },
-  async ({ classIds, componentIds, autoSubjects, maxMarks, ...data }, user, fd) => {
+  async ({ classIds, componentIds, autoSubjects, maxMarks, maxMarksA, openNow, ...data }, user, fd) => {
     if (!classIds.length) throw new UserError("Choose at least one class.");
     const weights = componentIds.map((id) => Number(fd.get(`weight_${id}`) ?? 0));
     if (data.isComposite) {
@@ -27,6 +29,7 @@ export const createExam = action(
     const exam = await prisma.$transaction(async (tx) => {
       const term = await tx.term.findUniqueOrThrow({ where: { id: data.termId } });
       const exam = await tx.exam.create({ data: { ...data, classes: { create: classIds.map((classId) => ({ classId })) } } });
+      const levels = new Map((await tx.schoolClass.findMany({ where: { id: { in: classIds } }, select: { id: true, level: true } })).map((c) => [c.id, c.level]));
       if (data.isComposite) {
         await tx.examComponent.createMany({ data: componentIds.map((componentExamId, i) => ({ compositeExamId: exam.id, componentExamId, weight: weights[i] })) });
       }
@@ -34,13 +37,18 @@ export const createExam = action(
         // Every subject that students in the class take this year.
         for (const classId of classIds) {
           const subs = await tx.studentSubject.findMany({ where: { academicYearId: term.academicYearId, student: { classId, status: "ACTIVE" } }, distinct: ["subjectId"], select: { subjectId: true } });
-          if (subs.length) await tx.examSubject.createMany({ data: subs.map((s) => ({ examId: exam.id, classId, subjectId: s.subjectId, maxMarks: data.isComposite ? 100 : maxMarks })) });
+          const max = data.isComposite ? 100 : levels.get(classId) === "A_LEVEL" ? maxMarksA : maxMarks;
+          if (subs.length) await tx.examSubject.createMany({ data: subs.map((s) => ({ examId: exam.id, classId, subjectId: s.subjectId, maxMarks: max })) });
         }
+      }
+      // Open for marks entry straight away (no separate step for the DOS) when there are subjects to enter.
+      if (openNow && !data.isComposite && (await tx.examSubject.count({ where: { examId: exam.id } })) > 0) {
+        await tx.exam.update({ where: { id: exam.id }, data: { status: "OPEN" } });
       }
       await audit(user.id, "CREATE", "Exam", exam.id, { name: data.name, classIds, componentIds, weights }, tx);
       return exam;
     });
-    return { ok: true, message: "Examination created.", redirect: `/exams/${exam.id}` };
+    return { ok: true, message: openNow && !data.isComposite ? "Examination created and open for marks entry." : "Examination created.", redirect: `/exams/${exam.id}` };
   },
 );
 
@@ -129,24 +137,35 @@ export const updateExam = action(
         await tx.examSubject.deleteMany({ where: { examId, classId: { in: removed } } });
         await tx.examClass.deleteMany({ where: { examId, classId: { in: removed } } });
       }
-      // Usual maximum mark of this exam (e.g. 80 for an O-Level EOT paper), for the new classes' subjects.
-      const maxCount = new Map<number, number>();
-      for (const s of exam.subjects) maxCount.set(Number(s.maxMarks), (maxCount.get(Number(s.maxMarks)) ?? 0) + 1);
-      const usualMax = [...maxCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 100;
+      // Usual maximum mark per level in this exam (e.g. O-Level EOT 80); A-Level defaults to 100 (no activities).
+      const allLevels = new Map((await tx.schoolClass.findMany({ where: { id: { in: [...before, ...added] } }, select: { id: true, level: true } })).map((c) => [c.id, c.level]));
+      const usualFor = (level: string) => {
+        const counts = new Map<number, number>();
+        for (const sub of exam.subjects) if (allLevels.get(sub.classId) === level) counts.set(Number(sub.maxMarks), (counts.get(Number(sub.maxMarks)) ?? 0) + 1);
+        const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+        if (top) return top;
+        if (level === "A_LEVEL") return 100;
+        const any = new Map<number, number>();
+        for (const sub of exam.subjects) any.set(Number(sub.maxMarks), (any.get(Number(sub.maxMarks)) ?? 0) + 1);
+        return [...any.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 100;
+      };
+      const usedMax = new Set<number>();
       let subjectsAdded = 0;
       for (const classId of added) {
         await tx.examClass.create({ data: { examId, classId } });
         const subs = await tx.studentSubject.findMany({ where: { academicYearId: term.academicYearId, student: { classId, status: "ACTIVE" } }, distinct: ["subjectId"], select: { subjectId: true } });
         if (subs.length) {
-          await tx.examSubject.createMany({ data: subs.map((x) => ({ examId, classId, subjectId: x.subjectId, maxMarks: exam.isComposite ? 100 : usualMax })), skipDuplicates: true });
+          const max = exam.isComposite ? 100 : usualFor(allLevels.get(classId) ?? "O_LEVEL");
+          usedMax.add(max);
+          await tx.examSubject.createMany({ data: subs.map((x) => ({ examId, classId, subjectId: x.subjectId, maxMarks: max })), skipDuplicates: true });
           subjectsAdded += subs.length;
         }
       }
       await tx.exam.update({ where: { id: examId }, data });
       await audit(user.id, "UPDATE", "Exam", examId, { ...data, addedClasses: added, removedClasses: removed }, tx);
-      return { added: added.length, removed: removed.length, subjectsAdded, usualMax };
+      return { added: added.length, removed: removed.length, subjectsAdded, maxes: [...usedMax].join(" / ") };
     });
-    const parts = [summary.added && `${summary.added} class(es) added with ${summary.subjectsAdded} subject(s) out of ${summary.usualMax}`, summary.removed && `${summary.removed} class(es) removed`].filter(Boolean);
+    const parts = [summary.added && `${summary.added} class(es) added with ${summary.subjectsAdded} subject(s) out of ${summary.maxes}`, summary.removed && `${summary.removed} class(es) removed`].filter(Boolean);
     return { ok: true, message: `Examination updated${parts.length ? `: ${parts.join(", ")}` : ""}.` };
   },
 );
