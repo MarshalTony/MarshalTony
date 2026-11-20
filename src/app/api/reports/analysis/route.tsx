@@ -60,6 +60,35 @@ export async function GET(req: Request) {
           ))}
         </View>
 
+        <Text style={{ fontSize: 9, marginTop: 4 }}>
+          <Text style={s.bold}>Overall winner: </Text>{a.rankings.winners.map((w) => `${w.name} (${a.cls.code} ${w.stream}, ${f(w.avg)}%)`).join(" & ") || "—"}{"     "}
+          <Text style={s.bold}>Best subject: </Text>{a.highlights.bestSubject ? `${a.highlights.bestSubject.name} (${f(a.highlights.bestSubject.avg)}%)` : "—"}{"     "}
+          <Text style={s.bold}>Weakest subject: </Text>{a.highlights.weakestSubject ? `${a.highlights.weakestSubject.name} (${f(a.highlights.weakestSubject.avg)}%)` : "—"}{"     "}
+          {a.highlights.bestStream ? <><Text style={s.bold}>Best stream: </Text>{`${a.highlights.bestStream.name} (${f(a.highlights.bestStream.avg)}%)`}</> : null}
+        </Text>
+        <Text style={[s.small, { marginTop: 2 }]}>Scores: {a.scoreLabel}, as on the report card.</Text>
+
+        <View style={[s.row, { gap: 12 }]}>
+          {([["Best 10 in the class", a.rankings.bestClass], ["Last 10 in the class", a.rankings.lastClass]] as const).map(([title, list]) => (
+            <View key={title} style={{ flex: 1 }}>
+              <H>{title}</H>
+              <Row head widths={[10, 58, 14, 18]} cells={["Pos.", "Student", "Stream", "Average"]} />
+              {list.map((r) => <Row key={r.studentId} widths={[10, 58, 14, 18]} bg={["white", "white", "white", fill(r.avg)]} cells={[String(r.position), r.name, r.stream, f(r.avg)]} />)}
+            </View>
+          ))}
+        </View>
+        <View style={[s.row, { gap: 12, flexWrap: "wrap" }]}>
+          {a.rankings.byStream.map((st) => (
+            <View key={st.id} style={{ width: a.rankings.byStream.length > 1 ? "48%" : "100%" }}>
+              <H>{st.name}: best 10 and last 3</H>
+              <Row head widths={[12, 56, 16, 16]} cells={["Pos.", "Student", "Average", "Class pos."]} />
+              {st.best.map((r) => <Row key={r.studentId} widths={[12, 56, 16, 16]} bg={["white", "white", fill(r.avg)]} cells={[String(r.position), r.name, f(r.avg), String(r.classPosition ?? "—")]} />)}
+              <Text style={[s.small, { marginTop: 3, fontFamily: "Helvetica-Bold" }]}>Last 3</Text>
+              {st.last.map((r) => <Row key={r.studentId} widths={[12, 56, 16, 16]} bg={["white", "white", fill(r.avg)]} cells={[String(r.position), r.name, f(r.avg), String(r.classPosition ?? "—")]} />)}
+            </View>
+          ))}
+        </View>
+
         <H>Subjects by stream (average %, subject teacher)</H>
         <Row head widths={sw} cells={["Subject", "Sat", ...a.streams.map((st) => `${a.cls.code} ${st.name}`), "Overall", ...(a.compareExam ? ["Change"] : []), "Boys", "Girls"]} />
         {a.subjects.map((sub) => (

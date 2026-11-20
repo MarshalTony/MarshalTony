@@ -86,14 +86,68 @@ export const saveExamSubjects = action(
 );
 
 export const deleteExam = action(
-  { permission: "exams.manage", revalidate: "/exams", schema: z.object({ examId: zs.id() }) },
-  async ({ examId }, user) => {
-    const exam = await prisma.exam.findUniqueOrThrow({ where: { id: examId }, include: { _count: { select: { marks: true, usedIn: true } } } });
-    if (exam._count.marks > 0) throw new UserError("This exam has marks and cannot be deleted. Close it instead.");
-    if (exam._count.usedIn > 0) throw new UserError("This exam is a component of a combined exam.");
+  { permission: "exams.manage", revalidate: "/exams", schema: z.object({ examId: zs.id(), confirmName: zs.optStr(120) }) },
+  async ({ examId, confirmName }, user) => {
+    const exam = await prisma.exam.findUniqueOrThrow({ where: { id: examId }, include: { _count: { select: { marks: true, results: true, usedIn: true } } } });
+    if (exam._count.usedIn > 0) throw new UserError("This exam is a component of a combined exam. Delete or edit the combined exam first.");
+    // An exam with marks is deleted only when its name is typed exactly (marks and results go with it).
+    if (exam._count.marks > 0 && (confirmName ?? "").trim().toLowerCase() !== exam.name.trim().toLowerCase())
+      throw new UserError(`This exam has ${exam._count.marks} marks. Type the exam name exactly to delete it with all its marks and results.`);
     await prisma.exam.delete({ where: { id: examId } });
-    await audit(user.id, "DELETE", "Exam", examId, { name: exam.name });
-    return { ok: true, message: "Exam deleted.", redirect: "/exams" };
+    await audit(user.id, "DELETE", "Exam", examId, { name: exam.name, marks: exam._count.marks, results: exam._count.results });
+    return { ok: true, message: `Exam "${exam.name}" deleted${exam._count.marks ? ` with ${exam._count.marks} marks` : ""}.`, redirect: "/exams" };
+  },
+);
+
+/**
+ * Edit an exam: name, type, term, dates and classes. Added classes get their subjects (what students take this year)
+ * with the exam's usual maximum mark; a class can be removed only if it has no marks yet.
+ */
+export const updateExam = action(
+  {
+    permission: "exams.manage", revalidate: "/exams",
+    schema: z.object({ examId: zs.id(), name: zs.str(120), examTypeId: zs.id(), termId: zs.id(), startDate: zs.optDate(), endDate: zs.optDate(), classIds: zs.ids() }),
+  },
+  async ({ examId, classIds, ...data }, user) => {
+    if (!classIds.length) throw new UserError("Choose at least one class.");
+    if (data.startDate && data.endDate && data.endDate < data.startDate) throw new UserError("The end date is before the start date.");
+    const summary = await prisma.$transaction(async (tx) => {
+      const exam = await tx.exam.findUniqueOrThrow({ where: { id: examId }, include: { term: true, classes: { include: { schoolClass: true } }, subjects: true, _count: { select: { marks: true } } } });
+      const term = await tx.term.findUniqueOrThrow({ where: { id: data.termId } });
+      if (exam._count.marks > 0 && term.academicYearId !== exam.term.academicYearId)
+        throw new UserError("This exam has marks, so it can only move to another term of the same year.");
+      const before = exam.classes.map((c) => c.classId);
+      const added = classIds.filter((c) => !before.includes(c));
+      const removed = before.filter((c) => !classIds.includes(c));
+      for (const classId of removed) {
+        const n = await tx.mark.count({ where: { examId, student: { classId } } });
+        if (n) throw new UserError(`${exam.classes.find((c) => c.classId === classId)?.schoolClass.name} already has ${n} marks in this exam and cannot be removed. Clear those marks first.`);
+      }
+      if (removed.length) {
+        await tx.subjectResult.deleteMany({ where: { examId, student: { classId: { in: removed } } } });
+        await tx.examResult.deleteMany({ where: { examId, classId: { in: removed } } });
+        await tx.examSubject.deleteMany({ where: { examId, classId: { in: removed } } });
+        await tx.examClass.deleteMany({ where: { examId, classId: { in: removed } } });
+      }
+      // Usual maximum mark of this exam (e.g. 80 for an O-Level EOT paper), for the new classes' subjects.
+      const maxCount = new Map<number, number>();
+      for (const s of exam.subjects) maxCount.set(Number(s.maxMarks), (maxCount.get(Number(s.maxMarks)) ?? 0) + 1);
+      const usualMax = [...maxCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 100;
+      let subjectsAdded = 0;
+      for (const classId of added) {
+        await tx.examClass.create({ data: { examId, classId } });
+        const subs = await tx.studentSubject.findMany({ where: { academicYearId: term.academicYearId, student: { classId, status: "ACTIVE" } }, distinct: ["subjectId"], select: { subjectId: true } });
+        if (subs.length) {
+          await tx.examSubject.createMany({ data: subs.map((x) => ({ examId, classId, subjectId: x.subjectId, maxMarks: exam.isComposite ? 100 : usualMax })), skipDuplicates: true });
+          subjectsAdded += subs.length;
+        }
+      }
+      await tx.exam.update({ where: { id: examId }, data });
+      await audit(user.id, "UPDATE", "Exam", examId, { ...data, addedClasses: added, removedClasses: removed }, tx);
+      return { added: added.length, removed: removed.length, subjectsAdded, usualMax };
+    });
+    const parts = [summary.added && `${summary.added} class(es) added with ${summary.subjectsAdded} subject(s) out of ${summary.usualMax}`, summary.removed && `${summary.removed} class(es) removed`].filter(Boolean);
+    return { ok: true, message: `Examination updated${parts.length ? `: ${parts.join(", ")}` : ""}.` };
   },
 );
 

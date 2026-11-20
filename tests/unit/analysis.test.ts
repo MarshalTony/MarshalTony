@@ -40,3 +40,18 @@ describe("results analysis", () => {
     expect(risk[1].reasons).toEqual(["dropped 12.5 points"]);
   });
 });
+
+import { bottomRanked, rankByAverage, topRanked } from "@/lib/exams/analysis";
+describe("rankings", () => {
+  const S = (id: string, avg: number): StudentAvg => ({ studentId: id, name: id, streamId: "A", gender: "MALE", avg });
+  const ranked = rankByAverage([S("a", 70), S("b", 90), S("c", 90), S("d", 50), S("e", 50), S("f", 40)]);
+  it("shares positions for ties", () => {
+    expect(ranked.map((r) => [r.studentId, r.position])).toEqual([["b", 1], ["c", 1], ["a", 3], ["d", 4], ["e", 4], ["f", 6]]);
+  });
+  it("includes ties at the cut-off", () => {
+    expect(topRanked(ranked, 1).map((r) => r.studentId)).toEqual(["b", "c"]);
+    expect(topRanked(ranked, 4).map((r) => r.studentId)).toEqual(["b", "c", "a", "d", "e"]);
+    expect(bottomRanked(ranked, 2).map((r) => r.studentId)).toEqual(["f", "e", "d"]);
+    expect(bottomRanked(ranked, 1).map((r) => r.studentId)).toEqual(["f"]);
+  });
+});

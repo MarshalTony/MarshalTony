@@ -1,8 +1,9 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { studentName } from "@/lib/utils";
+import { reportScores } from "./report-scores";
 import {
-  atRisk, changes, genderBySubject, gradeDistribution, mean, subjectStreamMatrix, teacherPerformance,
+  atRisk, bottomRanked, changes, genderBySubject, gradeDistribution, mean, rankByAverage, subjectStreamMatrix, teacherPerformance, topRanked,
   type StudentAvg, type SubjectMark,
 } from "@/lib/exams/analysis";
 
@@ -23,32 +24,31 @@ export async function loadAnalysis(examId: string, classId: string, compareId: s
   const exam = await prisma.exam.findUniqueOrThrow({ where: { id: examId }, include: { term: { include: { academicYear: true } } } });
   const cls = await prisma.schoolClass.findUniqueOrThrow({ where: { id: classId }, include: { streams: { orderBy: { name: "asc" } } } });
   const results = await prisma.examResult.findMany({ where: { examId, classId }, include: { student: true } });
-  const [subjectResults, examSubjects, allocations, compareExam] = await Promise.all([
-    prisma.subjectResult.findMany({ where: { examId, studentId: { in: results.map((r) => r.studentId) }, percentage: { not: null } } }),
+  const [scores, examSubjects, allocations, compareExam] = await Promise.all([
+    reportScores(examId, results.map((r) => r.studentId)),
     prisma.examSubject.findMany({ where: { examId, classId }, include: { subject: true }, orderBy: { subject: { name: "asc" } } }),
     prisma.teacherAllocation.findMany({ where: { academicYearId: exam.term.academicYearId, stream: { classId } }, include: { staff: true } }),
     compareId ? prisma.exam.findUnique({ where: { id: compareId }, include: { term: { include: { academicYear: true } } } }) : null,
   ]);
-  const streamOf = new Map(results.map((r) => [r.studentId, r.streamId]));
-  const genderOf = new Map(results.map((r) => [r.studentId, r.student.gender]));
-  const marks: SubjectMark[] = subjectResults.filter((s) => streamOf.has(s.studentId)).map((s) => ({
-    studentId: s.studentId, subjectId: s.subjectId, streamId: streamOf.get(s.studentId)!, gender: genderOf.get(s.studentId)!, pct: Number(s.percentage), grade: s.grade,
-  }));
-  const students: StudentAvg[] = results.filter((r) => r.subjectsCount > 0).map((r) => ({ studentId: r.studentId, name: studentName(r.student), streamId: r.streamId, gender: r.student.gender, avg: Number(r.average) }));
+  // Subject scores as printed on the report card; each student's average is across ALL their subjects.
+  const marks: SubjectMark[] = results.flatMap((r) => (scores.byStudent.get(r.studentId)?.subjects ?? []).map((x) => ({
+    studentId: r.studentId, subjectId: x.subjectId, streamId: r.streamId, gender: r.student.gender, pct: x.score, grade: x.grade,
+  })));
+  const students: StudentAvg[] = results.flatMap((r) => {
+    const avg = scores.byStudent.get(r.studentId)?.average;
+    return avg === null || avg === undefined ? [] : [{ studentId: r.studentId, name: studentName(r.student), streamId: r.streamId, gender: r.student.gender, avg }];
+  });
 
-  // Comparison exam: student averages and subject averages (same class).
+  // Comparison exam, scored the same way (all subjects).
   let prevAvg: Map<string, number> | null = null;
   let prevSubject: Map<string, number> | null = null;
   let prevClassAvg: number | null = null;
   if (compareExam) {
-    const [pr, ps] = await Promise.all([
-      prisma.examResult.findMany({ where: { examId: compareExam.id, studentId: { in: students.map((s) => s.studentId) }, subjectsCount: { gt: 0 } } }),
-      prisma.subjectResult.findMany({ where: { examId: compareExam.id, studentId: { in: students.map((s) => s.studentId) }, percentage: { not: null } } }),
-    ]);
-    prevAvg = new Map(pr.map((r) => [r.studentId, Number(r.average)]));
-    prevClassAvg = mean(pr.map((r) => Number(r.average)));
+    const prev = await reportScores(compareExam.id, students.map((x) => x.studentId));
+    prevAvg = new Map([...prev.byStudent.entries()].flatMap(([id, x]) => (x.average === null ? [] : [[id, x.average] as [string, number]])));
+    prevClassAvg = mean([...prevAvg.values()]);
     const bySub = new Map<string, number[]>();
-    for (const s of ps) bySub.set(s.subjectId, [...(bySub.get(s.subjectId) ?? []), Number(s.percentage)]);
+    for (const x of prev.byStudent.values()) for (const sub of x.subjects) bySub.set(sub.subjectId, [...(bySub.get(sub.subjectId) ?? []), sub.score]);
     prevSubject = new Map([...bySub.entries()].map(([k, v]) => [k, mean(v)!]));
   }
 
@@ -63,8 +63,31 @@ export async function loadAnalysis(examId: string, classId: string, compareId: s
   const streams = cls.streams.filter((s) => students.some((x) => x.streamId === s.id));
   const ch = prevAvg ? changes(students, prevAvg) : [];
 
+  const ranked = rankByAverage(students);
+  const withStream = <T extends { streamId: string }>(x: T) => ({ ...x, stream: streamName.get(x.streamId) ?? "" });
+  const subjectAvgs = subjects.map((x) => ({ name: x.name, avg: matrix.overall(x.id) })).filter((x) => x.avg !== null) as { name: string; avg: number }[];
+  subjectAvgs.sort((a, b) => b.avg - a.avg);
+  const streamAvgs = streams.map((st) => ({ name: `${cls.code} ${st.name}`, avg: mean(students.filter((x) => x.streamId === st.id).map((x) => x.avg)) })).filter((x) => x.avg !== null) as { name: string; avg: number }[];
+  streamAvgs.sort((a, b) => b.avg - a.avg);
+
   return {
-    exam, cls, compareExam, opts,
+    exam, cls, compareExam, opts, scoreLabel: scores.label,
+    rankings: {
+      winners: ranked.filter((r) => r.position === 1).map(withStream),
+      bestClass: topRanked(ranked, 10).map(withStream),
+      lastClass: bottomRanked(ranked, 10).map(withStream),
+      byStream: streams.map((st) => {
+        const inStream = rankByAverage(students.filter((x) => x.streamId === st.id));
+        const classPos = new Map(ranked.map((r) => [r.studentId, r.position]));
+        const add = (r: (typeof inStream)[number]) => ({ ...r, classPosition: classPos.get(r.studentId) ?? null });
+        return { id: st.id, name: `${cls.code} ${st.name}`, best: topRanked(inStream, 10).map(add), last: bottomRanked(inStream, 3).map(add) };
+      }),
+    },
+    highlights: {
+      bestSubject: subjectAvgs[0] ?? null,
+      weakestSubject: subjectAvgs.length > 1 ? subjectAvgs[subjectAvgs.length - 1] : null,
+      bestStream: streamAvgs.length > 1 ? streamAvgs[0] : null,
+    },
     streams: streams.map((s) => ({ id: s.id, name: s.name })),
     summary: {
       candidates: students.length,

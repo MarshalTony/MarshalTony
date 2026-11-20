@@ -4,7 +4,7 @@ import { BarChart3, FileText, MessageSquare } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
 import {
-  approveAllSubmitted, deleteExam, generateResultsAction, notifyResults, reviewMarks, saveExamSubjects, setExamStatus,
+  approveAllSubmitted, generateResultsAction, notifyResults, reviewMarks, saveExamSubjects, setExamStatus,
 } from "@/server/actions/exams";
 import { ActionForm, CheckboxField, ConfirmAction, FormDialog, TextField } from "@/components/forms";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Alert, Badge, Card, CardContent, CardHeader, CardTitle, PageHeader, Sta
 import { fmtDate, fmtDateTime, isoDate } from "@/lib/utils";
 import { resultsReadiness } from "@/server/exams/readiness";
 import { ResultsReadinessAlert } from "@/components/results-readiness";
+import { ExamEditActions } from "@/components/exams/exam-edit-actions";
 
 export default async function ExamDetail({ params }: { params: Promise<{ id: string }> }) {
   const user = await requirePage("exams.manage", "marks.enter", "marks.approve", "results.view");
@@ -28,6 +29,11 @@ export default async function ExamDetail({ params }: { params: Promise<{ id: str
   });
   if (!exam) notFound();
   const manage = can(user, "exams.manage");
+  const editLists = manage ? await Promise.all([
+    prisma.examType.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }),
+    prisma.term.findMany({ include: { academicYear: true }, orderBy: [{ academicYear: { startDate: "desc" } }, { number: "desc" }] }),
+    prisma.schoolClass.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }),
+  ]).then(([types, terms, classes]) => ({ types, terms, classes })) : { types: [], terms: [], classes: [] };
   const readiness = await resultsReadiness(exam.id);
   const approve = can(user, "marks.approve");
   const levelSubjects = await prisma.subject.findMany({ where: { isActive: true }, orderBy: { name: "asc" } });
@@ -54,7 +60,14 @@ export default async function ExamDetail({ params }: { params: Promise<{ id: str
               <ConfirmAction key={n.to} action={setExamStatus} fields={{ examId: exam.id, status: n.to }} label={n.label} variant={n.variant} size="default"
                 confirm={n.to === "PUBLISHED" ? "Publish results? Parents and students will be able to see them and download report cards." : undefined} />
             ))}
-            {manage && exam._count.marks === 0 && <ConfirmAction action={deleteExam} fields={{ examId: exam.id }} label="Delete" variant="destructive" size="default" confirm="Delete this examination?" />}
+            {manage && (
+              <ExamEditActions
+                exam={{ id: exam.id, name: exam.name, examTypeId: exam.examTypeId, termId: exam.termId, startDate: exam.startDate, endDate: exam.endDate, isComposite: exam.isComposite, classIds: exam.classes.map((c) => c.classId), marks: exam._count.marks, results: exam._count.results }}
+                examTypes={editLists.types.map((t) => ({ value: t.id, label: t.name }))}
+                terms={editLists.terms.map((t) => ({ value: t.id, label: `${t.academicYear.name} ${t.name}` }))}
+                classes={editLists.classes.map((c) => ({ value: c.id, label: c.code }))}
+              />
+            )}
           </>
         }
       />

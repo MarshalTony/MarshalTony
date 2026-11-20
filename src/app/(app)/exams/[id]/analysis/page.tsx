@@ -40,7 +40,7 @@ export default async function AnalysisPage({ params, searchParams }: { params: P
   const header = (
     <PageHeader
       title={`Results analysis — ${a.cls.name}`}
-      description={`${exam.name}${a.compareExam ? ` · compared with ${a.compareExam.name} (${a.compareExam.term.name} ${a.compareExam.term.academicYear.name})` : ""}. Scores are exam percentages.`}
+      description={`${exam.name}${a.compareExam ? ` · compared with ${a.compareExam.name} (${a.compareExam.term.name} ${a.compareExam.term.academicYear.name})` : ""}. Each student's score is the ${a.scoreLabel}, as on the report card.`}
       actions={<>
         <Button asChild variant="outline"><a href={`/api/reports/analysis?${qs}`} target="_blank"><FileText />PDF for staff meeting</a></Button>
         <Button asChild variant="outline"><Link href={`/exams/${id}/results?classId=${classId}`}>Results & broadsheet</Link></Button>
@@ -59,6 +59,24 @@ export default async function AnalysisPage({ params, searchParams }: { params: P
   );
   if (!a.summary.candidates) return <>{header}{picker}<Alert tone="warn">No results for {a.cls.name} yet — generate results on the exam page first.</Alert></>;
   const s = a.summary;
+  const RankTable = ({ rows, showClassPos }: { rows: { studentId: string; name: string; stream: string; avg: number; position: number; classPosition?: number | null }[]; showClassPos?: boolean }) => (
+    rows.length === 0 ? <p className="text-sm text-slate-500">—</p> : (
+      <Table>
+        <THead><tr><TH>Pos.</TH><TH>Student</TH>{!showClassPos && <TH>Stream</TH>}<TH>Average</TH>{showClassPos && <TH>Class pos.</TH>}</tr></THead>
+        <tbody>{rows.map((r) => (
+          <TR key={r.studentId}>
+            <TD className="font-semibold">{r.position}</TD>
+            <TD><Link className="text-brand-800 hover:underline" href={`/students/${r.studentId}`}>{r.name}</Link></TD>
+            {!showClassPos && <TD>{r.stream}</TD>}
+            <TD className={tone(r.avg, opts.passMark)}>{pct(r.avg)}</TD>
+            {showClassPos && <TD>{r.classPosition ?? "—"}</TD>}
+          </TR>
+        ))}</tbody>
+      </Table>
+    )
+  );
+  const h = a.highlights;
+
   const gradeKeys = Object.keys(s.grades).sort();
   const totalGrades = gradeKeys.reduce((n, g) => n + s.grades[g], 0);
 
@@ -72,6 +90,36 @@ export default async function AnalysisPage({ params, searchParams }: { params: P
         <StatCard label={`Pass rate (≥ ${opts.passMark}%)`} value={s.passRate === null ? "—" : `${s.passRate}%`} />
         <StatCard label="Boys / girls average" value={`${pct(s.boysAvg)} / ${pct(s.girlsAvg)}`} />
         <StatCard label="Students at risk" value={a.risk.length} hint={a.risk.length ? "see the list below" : undefined} />
+      </div>
+
+      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Overall winner" value={a.rankings.winners.map((w) => w.name).join(" & ") || "—"} hint={a.rankings.winners[0] ? `${pct(a.rankings.winners[0].avg)}% · ${a.cls.code} ${a.rankings.winners.map((w) => w.stream).join(" & ")}` : undefined} />
+        <StatCard label="Best performed subject" value={h.bestSubject?.name ?? "—"} hint={h.bestSubject ? `average ${pct(h.bestSubject.avg)}%` : undefined} />
+        <StatCard label="Weakest subject" value={h.weakestSubject?.name ?? "—"} hint={h.weakestSubject ? `average ${pct(h.weakestSubject.avg)}%` : undefined} />
+        <StatCard label="Best stream" value={h.bestStream?.name ?? "—"} hint={h.bestStream ? `average ${pct(h.bestStream.avg)}%` : undefined} />
+      </div>
+
+      <div className="mb-5 grid gap-5 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle>Best 10 in {a.cls.name}</CardTitle></CardHeader>
+          <CardContent><RankTable rows={a.rankings.bestClass} /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Last 10 in {a.cls.name}</CardTitle></CardHeader>
+          <CardContent><RankTable rows={a.rankings.lastClass} /></CardContent>
+        </Card>
+      </div>
+      <div className="mb-5 grid gap-5 lg:grid-cols-2">
+        {a.rankings.byStream.map((st) => (
+          <Card key={st.id}>
+            <CardHeader><CardTitle>{st.name}: best 10 and last 3</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <RankTable showClassPos rows={st.best.map((r) => ({ ...r, stream: st.name }))} />
+              <p className="text-xs font-semibold uppercase text-slate-500">Last 3</p>
+              <RankTable showClassPos rows={st.last.map((r) => ({ ...r, stream: st.name }))} />
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="mb-5 grid gap-5 lg:grid-cols-2">

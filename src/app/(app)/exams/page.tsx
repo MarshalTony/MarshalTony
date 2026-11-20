@@ -7,6 +7,7 @@ import { FilterBar } from "@/components/filters";
 import { Badge, Card, CardContent, CardHeader, CardTitle, PageHeader, StatusBadge } from "@/components/ui/card";
 import { Table, THead, TH, TR, TD, sp, type SP } from "@/components/data-table";
 import { fmtDate } from "@/lib/utils";
+import { ExamEditActions } from "@/components/exams/exam-edit-actions";
 
 export const metadata = { title: "Examinations" };
 
@@ -98,7 +99,7 @@ export default async function ExamsPage({ searchParams }: { searchParams: Promis
         { name: "status", label: "Status", options: ["DRAFT", "OPEN", "CLOSED", "PUBLISHED"].map((s) => ({ value: s, label: s })) },
       ]} />
       <Table>
-        <THead><tr><TH>Examination</TH><TH>Type</TH><TH>Classes</TH><TH>Dates</TH><TH>Marks</TH><TH>Status</TH></tr></THead>
+        <THead><tr><TH>Examination</TH><TH>Type</TH><TH>Classes</TH><TH>Dates</TH><TH>Marks</TH><TH>Status</TH>{can(user, "exams.manage") && <TH className="text-right">Actions</TH>}</tr></THead>
         <tbody>
           {exams.map((e) => (
             <TR key={e.id}>
@@ -111,9 +112,17 @@ export default async function ExamsPage({ searchParams }: { searchParams: Promis
               <TD className="whitespace-nowrap text-xs">{e.startDate ? `${fmtDate(e.startDate)} – ${fmtDate(e.endDate)}` : "—"}</TD>
               <TD>{e.isComposite ? <Badge>calculated</Badge> : e._count.marks}</TD>
               <TD><StatusBadge status={e.status} /></TD>
+              {can(user, "exams.manage") && (
+                <TD className="whitespace-nowrap text-right">
+                  <span className="inline-flex gap-1">
+                    <ExamEditActions size="sm" exam={{ id: e.id, name: e.name, examTypeId: e.examTypeId, termId: e.termId, startDate: e.startDate, endDate: e.endDate, isComposite: e.isComposite, classIds: e.classes.map((c) => c.classId), marks: e._count.marks, results: e._count.results }}
+                      examTypes={types.map((t) => ({ value: t.id, label: t.name }))} terms={terms.map((t) => ({ value: t.id, label: `${t.academicYear.name} ${t.name}` }))} classes={classes.map((c) => ({ value: c.id, label: c.code }))} />
+                  </span>
+                </TD>
+              )}
             </TR>
           ))}
-          {exams.length === 0 && <TR><TD colSpan={6} className="py-6 text-center text-slate-500">No examinations for this term yet.</TD></TR>}
+          {exams.length === 0 && <TR><TD colSpan={7} className="py-6 text-center text-slate-500">No examinations for this term yet.</TD></TR>}
         </tbody>
       </Table>
     </>

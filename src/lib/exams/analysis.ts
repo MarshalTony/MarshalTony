@@ -83,3 +83,30 @@ export function atRisk(students: StudentAvg[], marks: SubjectMark[], previous: M
   }
   return out.sort((a, b) => a.avg - b.avg);
 }
+
+export type Ranked = StudentAvg & { position: number };
+
+/** Positions by average, highest first; equal averages share a position (1, 1, 3). */
+export function rankByAverage(students: StudentAvg[]): Ranked[] {
+  const sorted = [...students].sort((a, b) => b.avg - a.avg || a.name.localeCompare(b.name));
+  let pos = 0;
+  return sorted.map((s, i) => {
+    if (i === 0 || s.avg !== sorted[i - 1].avg) pos = i + 1;
+    return { ...s, position: pos };
+  });
+}
+
+/** Best n by position (students tied at the cut-off are all included). */
+export function topRanked(ranked: Ranked[], n: number): Ranked[] {
+  if (!ranked.length || n <= 0) return [];
+  const cut = ranked[Math.min(n, ranked.length) - 1].position;
+  return ranked.filter((r) => r.position <= cut);
+}
+
+/** Lowest n averages, lowest first (ties at the cut-off included). */
+export function bottomRanked(ranked: Ranked[], n: number): Ranked[] {
+  if (!ranked.length || n <= 0) return [];
+  const asc = [...ranked].reverse();
+  const cutAvg = asc[Math.min(n, asc.length) - 1].avg;
+  return asc.filter((r) => r.avg <= cutAvg);
+}

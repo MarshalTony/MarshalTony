@@ -81,9 +81,12 @@ export function ReportCardPicker({ years, terms, exams, classes }: { years: Year
         <div className="rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="mb-3 flex items-center gap-2 font-semibold"><Users className="h-4 w-4 text-brand-700" />Class or stream</h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            {field("rc-class", "4. Class", <Select id="rc-class" value={classId} onChange={(e) => { setClassId(e.target.value); setStreamId(""); }} className="w-full" disabled={!classOpts.length}>{classOpts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>)}
+            {field("rc-class", "4. Class", <Select id="rc-class" value={classId} onChange={(e) => { setClassId(e.target.value); setStreamId(""); }} className="w-full" disabled={!exam}>{classes.map((c) => <option key={c.id} value={c.id} disabled={!exam?.classIds.includes(c.id)}>{c.name}{exam && !exam.classIds.includes(c.id) ? " — not in this exam" : ""}</option>)}</Select>)}
             {field("rc-stream", "5. Stream", <Select id="rc-stream" value={streamId} onChange={(e) => setStreamId(e.target.value)} className="w-full" disabled={!cls}><option value="">All streams</option>{cls?.streams.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select>)}
           </div>
+          {exam && classOpts.length < classes.length && (
+            <p className="mt-2 text-xs text-amber-700">{exam.name} includes only {classOpts.map((c) => c.name).join(", ") || "no classes"}. To add other classes, open <a className="underline" href={`/exams/${exam.id}`}>the examination</a> and choose <i>Edit</i>.</p>
+          )}
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {classHref ? <Button asChild><a href={classHref} target="_blank" rel="noopener"><FileText />Generate report cards</a></Button> : <Button disabled><FileText />Generate report cards</Button>}
             {exam && classId && <a className="text-sm text-brand-700 hover:underline" href={`/exams/${exam.id}/comments?streamId=${streamId || cls?.streams[0]?.id || ""}`}>Comments</a>}
