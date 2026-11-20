@@ -91,6 +91,7 @@ export function ReportCardPicker({ years, terms, exams, classes }: { years: Year
             {classHref ? <Button asChild><a href={classHref} target="_blank" rel="noopener"><FileText />Generate report cards</a></Button> : <Button disabled><FileText />Generate report cards</Button>}
             {exam && classId && <a className="text-sm text-brand-700 hover:underline" href={`/exams/${exam.id}/comments?streamId=${streamId || cls?.streams[0]?.id || ""}`}>Comments</a>}
             {exam && classId && <a className="text-sm text-brand-700 hover:underline" href={`/exams/${exam.id}/analysis?classId=${classId}`}>Analysis</a>}
+            {exam && classId && <a className="text-sm text-brand-700 hover:underline" href={`/exams/${exam.id}/readiness?classId=${classId}`}>Readiness</a>}
           </div>
           <p className="mt-2 text-xs text-slate-500">One PDF with a card for every student {streamId ? "in the stream" : "in the class"}, opened in a new tab to print or save. Latest saved marks are included automatically.</p>
         </div>

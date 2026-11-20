@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-20 — competency card for all S1–S4 exams._
+_Last updated: 2026-11-20 — report readiness tracker._
 
 ## 1. What this is
 
@@ -58,7 +58,7 @@ See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/DEPLOYMENT.md`, `docs/API.
 - Dev server: `npx next dev -p 3000`. Demo data: `npm run db:demo` (demo users and their password are in `prisma/demo-data.ts`;
   `teacher1` = Okello Peter, class teacher of S1 A, English everywhere; also `bursar`, `librarian`).
   Local admin password can be reset with a bcrypt update in a scratch script (never commit it).
-- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (86 tests at last count:
+- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (88 tests at last count:
   unit in `tests/unit`, DB integration in `tests/integration`). Acceptance suite: `npm run test:acceptance`.
 - Browser verification with Playwright (pre-installed; `require('playwright')`), scripts kept in the scratchpad
   (they are not in the repo). Log in, drive the page, save PDFs and render them with `pdftoppm`/`pdftotext` to check.
@@ -104,7 +104,8 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
   (`/scores`: Activity scores out of 3 for S1–S4; Exam scores for any exam of the term), **Comment Bank** (`/comment-bank`),
   Examinations (create/edit/delete, results, broadsheets, **Analysis** `exams/[id]/analysis` + PDF `api/reports/analysis`:
   winner, best/weakest subject, best stream, best 10/last 10 class, best 10/last 3 per stream, subject×stream with teachers,
-  teacher averages, improvement vs comparison exam, at-risk), comments page `exams/[id]/comments` (fill from bank, ↻),
+  teacher averages, improvement vs comparison exam, at-risk), **Readiness** `exams/[id]/readiness` (marks / activity scores / comments
+  progress per class × stream × subject, teachers to follow up; logic `src/server/exams/progress.ts` + `src/lib/exams/progress.ts`), comments page `exams/[id]/comments` (fill from bank, ↻),
   **Report Cards** (`/report-cards`), UNEB, attendance, assignments.
 - **Fees & finance, HR/payroll, library, inventory, welfare/discipline, transport, communication, reports, settings, audit, backup, portals** — from phases 4–6 (see docs).
 
@@ -116,6 +117,8 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 - Comment bank seeded (10 class-teacher, 10 head-teacher, 5 DOS comments). No live test data was created by Claude.
 
 ## 9. Pending / next ideas (not started unless the owner asks)
+
+- **Agreed order (owner said "we go as your order"):** ✅ report readiness tracker → **next: activity scores from Excel** (pre-filled template, one column per chapter) → subject order on report cards → combined BOT+MOT+EOT card (only if wanted) → students: results history on profile, data clean-up check, EMIS statistics, student documents.
 
 - Termly report combining BOT + MOT + EOT on one card (if wanted).
 - Report-card subject order (custom order instead of alphabetical); confirm admission-number / "Reg Number" format.

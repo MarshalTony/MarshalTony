@@ -57,6 +57,7 @@ export default async function ExamDetail({ params }: { params: Promise<{ id: str
         actions={
           <>
             {exam.status === "PUBLISHED" && <StatusBadge status="PUBLISHED" />}
+            {!exam.isComposite && <Button asChild variant="outline"><Link href={`/exams/${exam.id}/readiness`}>Readiness</Link></Button>}
             {manage && next[exam.status].map((n) => (
               <ConfirmAction key={n.to} action={setExamStatus} fields={{ examId: exam.id, status: n.to }} label={n.label} variant={n.variant} size="default"
                 confirm={n.to === "PUBLISHED" ? "Publish results? Parents and students will be able to see them and download report cards." : undefined} />
