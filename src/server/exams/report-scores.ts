@@ -15,13 +15,13 @@ export function meanTotal(totals: (number | null)[]): number | null {
 
 /**
  * Each student's score per subject as the report card shows it, and their average across ALL subjects:
- * O-Level end-of-term (competency card) → subject total = activities out of 20 + EOT out of 80;
+ * O-Level (competency card, any exam) → subject total = activities out of 20 + the exam out of 80;
  * any other exam / level → the subject percentage. Used by report-card comments and results analysis.
  */
 export async function reportScores(examId: string, studentIds: string[]): Promise<ReportScores> {
   const exam = await prisma.exam.findUniqueOrThrow({ where: { id: examId }, include: { examType: true, term: true } });
   const school = await prisma.schoolSetting.findUnique({ where: { id: 1 }, select: { reportTemplate: true } });
-  const cbcOn = (school?.reportTemplate as { cbcOLevel?: boolean } | null)?.cbcOLevel !== false && exam.examType.code === "EOT";
+  const cbcOn = (school?.reportTemplate as { cbcOLevel?: boolean } | null)?.cbcOLevel !== false;
   const yearId = exam.term.academicYearId;
   const [students, oScale, activities] = await Promise.all([
     prisma.student.findMany({
@@ -64,7 +64,7 @@ export async function reportScores(examId: string, studentIds: string[]): Promis
   }
   return {
     mode: anyCbc ? "cbc" : "exam",
-    label: anyCbc ? "average of all subjects' totals (/20 + EOT/80)" : "average of all subjects (%)",
+    label: anyCbc ? `average of all subjects' totals (activities /20 + ${exam.examType.code}/80)` : "average of all subjects (%)",
     byStudent,
   };
 }

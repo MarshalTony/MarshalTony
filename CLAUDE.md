@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-20 (commit after `aaaa6db`)._
+_Last updated: 2026-11-20 — competency card for all S1–S4 exams._
 
 ## 1. What this is
 
@@ -79,17 +79,17 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 
 ## 6. Decisions agreed with the school (do not undo without asking)
 
-- **O-Level end-of-term report = the school's two-page competency (CBC) card** (`src/server/reports/report-card-cbc.tsx`):
+- **Every S1–S4 report card (BOT, MOT, EOT…) = the school's two-page competency (CBC) card** (`src/server/reports/report-card-cbc.tsx`):
   page 1 Activities of Integration (chapters scored **out of 3**, average, identifier 3/2/1, descriptor, remark, teacher);
-  page 2 summary: **out of 20** (= avg ÷ 3 × 20) + **EOT out of 80** = total, grade **A 90–100, B 80–89, C 60–79, D 50–59, E 0–49**
+  page 2 "Summary of <exam type> Performance": **out of 20** (= avg ÷ 3 × 20) + **the exam out of 80** (column "BOT/80", "EOT/80"…; papers out of 100 are scaled) = total, grade **A 90–100, B 80–89, C 60–79, D 50–59, E 0–49**
   with the long descriptors, class-teacher & head-teacher comments, term dates, red "invalid without school stamp".
-  Switchable in Settings → School profile (`reportTemplate.cbcOLevel`). BOT/MOT and A-Level use the standard card.
+  Switchable in Settings → School profile (`reportTemplate.cbcOLevel`). Only A-Level (S5–S6) uses the standard one-page card.
 - **S5–S6 (A-Level) have no Activities of Integration**; their papers are out of 100. New exams ask for an O-Level max (80 for EOT) and an A-Level max (100).
 - **No DOS approval of marks** (Settings switch `reportTemplate.requireMarksApproval`, default off): saved marks count at once.
 - **Examinations are always open for marks entry** — no open/close; only Publish/Unpublish (visibility to parents/students). New exams start `OPEN`.
 - Printing report cards refreshes results automatically when marks changed (`ensureFreshResults`).
 - **Teachers only see/enter their allocated subjects & streams**; the admin/DOS picks the **teacher first** (Teacher → Class → Subject → Term → Year) so the right subject teacher prints on the card.
-- **Averages for analysis and comments = average across ALL subjects** as printed on the card (`src/server/exams/report-scores.ts`: CBC subject totals for O-Level EOT, else subject %).
+- **Averages for analysis and comments = average across ALL subjects** as printed on the card (`src/server/exams/report-scores.ts`: CBC subject totals for every O-Level exam, subject % for A-Level).
 - Report Cards page: Year → Term → Report (exam) → Class → Stream → Generate; or One student (search). Classes not in the exam are shown as such (fix by **Edit** on the exam).
 - Exams can be **edited** (name, type, term, dates, classes) and **deleted** (exams with marks need the name typed).
 

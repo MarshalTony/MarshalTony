@@ -37,8 +37,8 @@ export default async function CommentsPage({ params, searchParams }: { params: P
     commentBasis(id, results.map((r) => r.studentId)),
     prisma.commentTemplate.findMany({ where: { isActive: true }, orderBy: [{ role: "asc" }, { minScore: "desc" }, { createdAt: "asc" }] }),
   ]);
-  // The competency (O-Level EOT) card prints only class-teacher and head-teacher comments.
-  const cbcCard = exam.examType.code === "EOT" && stream.schoolClass.level === "O_LEVEL" && (school?.reportTemplate as { cbcOLevel?: boolean } | null)?.cbcOLevel !== false;
+  // The competency card (all S1–S4 exams) prints only class-teacher and head-teacher comments.
+  const cbcCard = stream.schoolClass.level === "O_LEVEL" && (school?.reportTemplate as { cbcOLevel?: boolean } | null)?.cbcOLevel !== false;
   const streams = exam.classes.flatMap((c) => c.schoolClass.streams.map((s) => ({ id: s.id, label: `${c.schoolClass.code} ${s.name}` })));
   const anyBasis = basis.values().next().value;
 

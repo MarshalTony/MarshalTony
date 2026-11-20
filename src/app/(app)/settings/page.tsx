@@ -47,7 +47,7 @@ export default async function SchoolSettings() {
               <CheckboxField name="showStreamPosition" label="Show stream position" defaultChecked={t.showStreamPosition !== false} />
               <CheckboxField name="showAttendance" label="Show attendance summary" defaultChecked={t.showAttendance !== false} />
               <CheckboxField name="showGradingKey" label="Show grading key" defaultChecked={t.showGradingKey !== false} />
-              <CheckboxField name="cbcOLevel" label="O-Level end-of-term reports use the competency-based format (activities out of 3 → out of 20, + EOT out of 80)" defaultChecked={t.cbcOLevel !== false} />
+              <CheckboxField name="cbcOLevel" label="S1–S4 reports use the competency-based format for every exam (activities of integration out of 3 → out of 20, + the exam out of 80)" defaultChecked={t.cbcOLevel !== false} />
               <CheckboxField name="requireMarksApproval" label="Marks need DOS approval before they count (teachers submit, DOS approves). Off: saved marks count straight away; close the exam to stop entry." defaultChecked={t.requireMarksApproval === true} />
               <TextField label="Class teacher label" name="classTeacherLabel" defaultValue={t.classTeacherLabel ?? "Class Teacher"} required />
               <TextField label="DOS label" name="dosLabel" defaultValue={t.dosLabel ?? "Director of Studies"} required />

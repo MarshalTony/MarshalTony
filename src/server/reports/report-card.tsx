@@ -28,8 +28,9 @@ export async function renderReportCards(examId: string, studentIds: string[], ge
   const rules = Object.fromEntries(await Promise.all(levels.map(async (l) => [l, await loadRule(l)] as const)));
   const scales = Object.fromEntries(await Promise.all(levels.map(async (l) => [l, await loadScales(l)] as const)));
 
-  // O-Level end-of-term reports use the competency-based layout (unless switched off in Settings).
-  const cbcIds = tpl.cbcOLevel !== false && exam.examType.code === "EOT"
+  // S1–S4 reports use the competency-based layout for every exam (unless switched off in Settings):
+  // Activities of Integration, then the summary = activities out of 20 + this exam out of 80.
+  const cbcIds = tpl.cbcOLevel !== false
     ? results.filter((r) => r.student.schoolClass.level === "O_LEVEL").map((r) => r.studentId)
     : [];
   const cbcPages = school && cbcIds.length ? await buildCbcPages({ exam, b, school }, cbcIds) : new Map<string, React.ReactElement>();

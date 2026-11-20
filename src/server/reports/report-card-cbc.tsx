@@ -19,7 +19,7 @@ const t = {
 };
 
 type Ctx = {
-  exam: { id: string; termId: string; term: { number: number; endDate: Date; nextTermStart: Date | null; academicYearId: string; academicYear: { name: string } } };
+  exam: { id: string; termId: string; examType: { code: string; name: string }; term: { number: number; endDate: Date; nextTermStart: Date | null; academicYearId: string; academicYear: { name: string } } };
   b: Branding;
   school: { name: string; poBox: string | null; address: string | null; phone: string | null; altPhone: string | null; website: string | null; email: string | null; altEmail: string | null; motto: string | null; reportFooter: string | null };
 };
@@ -163,9 +163,9 @@ export async function buildCbcPages(ctx: Ctx, studentIds: string[]) {
         </Page>
 
         <Page size="A4" style={t.page}>
-          <Text style={[t.b, { fontSize: 14, textAlign: "center", textDecoration: "underline", marginBottom: 14 }]}>Summary of End of Term Performance, {exam.term.academicYear.name}</Text>
+          <Text style={[t.b, { fontSize: 14, textAlign: "center", textDecoration: "underline", marginBottom: 14 }]}>Summary of {exam.examType.name} Performance, {exam.term.academicYear.name}</Text>
           <View style={t.table}>
-            <View style={t.row}>{C("52%", "SUBJECT", t.b)}{C("11%", "Out of 20", t.b)}{C("9%", "EOT/80", t.b)}{C("16%", "TOTAL(100%)", t.b)}{C("12%", "GRADE", t.b)}</View>
+            <View style={t.row}>{C("52%", "SUBJECT", t.b)}{C("11%", "Out of 20", t.b)}{C("9%", `${exam.examType.code.length <= 4 ? exam.examType.code : "EXAM"}/80`, t.b)}{C("16%", "TOTAL(100%)", t.b)}{C("12%", "GRADE", t.b)}</View>
             {summary.map((r) => (
               <View key={r.sub.id} style={t.row} wrap={false}>
                 {C("52%", r.sub.name)}{C("11%", r.out20 ?? "")}{C("9%", r.eot80 ?? "")}{C("16%", r.total ?? "")}{C("12%", r.grade)}
