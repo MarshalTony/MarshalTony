@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-20 — enrolment statistics (EMIS)._
+_Last updated: 2026-11-20 — all student data deleted on the owner's request._
 
 ## 1. What this is
 
@@ -114,12 +114,15 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
   **Report Cards** (`/report-cards`), UNEB, attendance, assignments.
 - **Fees & finance, HR/payroll, library, inventory, welfare/discipline, transport, communication, reports, settings, audit, backup, portals** — from phases 4–6 (see docs).
 
-## 8. Live data state (2026-11-20)
+## 8. Live data state (2026-11-20, after the owner's bulk delete)
 
-- Exams: one — **"Begining of Term 3 exam"** (BOT, S1–S6, out of 100, open, 0 marks). The earlier EOT exam was deleted by the school.
-- Only **7 of 75** teaching staff have allocations for 2026 → teachers need allocating (Allocation grid) before they can enter scores.
-- Headteacher name not set (letters print "HEADTEACHER") — Settings → School profile.
-- Comment bank seeded (10 class-teacher, 10 head-teacher, 5 DOS comments). No live test data was created by Claude.
+- **All student data deleted at the owner's request** (one SQL transaction, audit log action `BULK_DELETE_STUDENTS`):
+  1,096 students and everything linked (subjects, enrolments, marks, results, attendance, activity scores, remarks, comments, photos),
+  the 2 parents + 1 parent login, **both exams**, and the student/marks/attendance/activity import batches. No backup (owner's choice).
+  Fees tables were empty, so nothing financial was affected.
+- Kept: 75 staff, 6 classes, 20 streams, 32 subjects, 55 teacher allocations (2026), comment bank, 4 activity chapter titles, settings, staff logins.
+- Next for the school: re-import / register students (Excel import), check Students → Data check, create exams, enter scores.
+- Headteacher name still not set (Settings → School profile).
 
 ## 9. Pending / next ideas (not started unless the owner asks)
 
