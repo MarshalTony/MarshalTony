@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-20 — staff logins with admin-set passwords; menus follow permissions._
+_Last updated: 2026-11-20 — A-Level subject rule (3 principals + GP + Sub-Maths or Sub-ICT)._
 
 ## 1. What this is
 
@@ -61,7 +61,7 @@ See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/DEPLOYMENT.md`, `docs/API.
 - Dev server: `npx next dev -p 3000`. Demo data: `npm run db:demo` (demo users and their password are in `prisma/demo-data.ts`;
   `teacher1` = Okello Peter, class teacher of S1 A, English everywhere; also `bursar`, `librarian`).
   Local admin password can be reset with a bcrypt update in a scratch script (never commit it).
-- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (94 tests at last count:
+- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (97 tests at last count:
   unit in `tests/unit`, DB integration in `tests/integration`). Acceptance suite: `npm run test:acceptance`.
 - Browser verification with Playwright (pre-installed; `require('playwright')`), scripts kept in the scratchpad
   (they are not in the repo). Log in, drive the page, save PDFs and render them with `pdftoppm`/`pdftotext` to check.
@@ -87,6 +87,9 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
   page 2 "Summary of <exam type> Performance": **out of 20** (= avg ÷ 3 × 20) + **the exam out of 80** (column "BOT/80", "EOT/80"…; papers out of 100 are scaled) = total, grade **A 90–100, B 80–89, C 60–79, D 50–59, E 0–49**
   with the long descriptors, class-teacher & head-teacher comments, term dates, red "invalid without school stamp".
   Switchable in Settings → School profile (`reportTemplate.cbcOLevel`). Only A-Level (S5–S6) uses the standard one-page card.
+- **S5–S6 subjects: at most 3 principal subjects + 2 subsidiaries = General Paper + EITHER Sub-Maths OR Sub-ICT** (never both).
+  Rule `src/lib/alevel.ts` (`aLevelProblems`), enforced in combinations (must be complete: 3P + GP + 1), profile subjects, bulk edit;
+  violations listed on Students → Data check.
 - **S5–S6 (A-Level) have no Activities of Integration**; their papers are out of 100. New exams ask for an O-Level max (80 for EOT) and an A-Level max (100).
 - **No DOS approval of marks** (Settings switch `reportTemplate.requireMarksApproval`, default off): saved marks count at once.
 - **Examinations are always open for marks entry** — no open/close; only Publish/Unpublish (visibility to parents/students). New exams start `OPEN`.
@@ -135,6 +138,9 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 - **Agreed order (owner said "we go as your order"):** ✅ report readiness tracker → ✅ activity scores from Excel → ✅ subject order on report cards → combined BOT+MOT+EOT card (**only if the owner wants it — ask**) → students: ✅ results history on profile → ✅ data clean-up check → ✅ enrolment statistics (EMIS) → **next: student documents** (needs a migration for document records; files via `saveUpload`).
 
 - Termly report combining BOT + MOT + EOT on one card (if wanted).
+- **A-Level report in the school's format** (owner uploaded a schoolmonitorug sample, 2026-11-20): per subject its papers (P/1, P/2, S/1),
+  BOT and EOT columns, average, paper grade D1–F9, subject grade A–F (UNEB rules), comment, teacher initials, total points, crest watermark.
+  Needs paper-level marks (not modelled yet) — **ask the owner before building**.
 - Confirm admission-number / "Reg Number" format on the card.
 - Other modules the owner may pick next: fees, attendance, parent portal, SMS (needs Africa's Talking keys), enrolment statistics (EMIS),
   student documents, siblings/family view, data clean-up assistant.

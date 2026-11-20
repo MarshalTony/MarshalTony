@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
 import { fixMissingEnrollments, fixMissingSubjects } from "@/server/actions/students";
 import { isUgandanPhone, likelyDuplicates } from "@/lib/data-check";
+import { aLevelProblems } from "@/lib/alevel";
 import { ConfirmAction } from "@/components/forms";
 import { Button } from "@/components/ui/button";
 import { Alert, Card, CardContent, CardHeader, CardTitle, PageHeader, StatCard } from "@/components/ui/card";
@@ -35,8 +36,15 @@ export default async function DataCheckPage() {
     prisma.student.count({ where: { ...active, OR: [{ schoolPayCode: null }, { schoolPayCode: "" }] } }),
   ]);
   const dups = likelyDuplicates(everyone);
+  // S5–S6: 3 principal subjects + General Paper + either Sub-Maths or Sub-ICT.
+  const aLevel = await prisma.student.findMany({
+    where: { ...active, schoolClass: { level: "A_LEVEL" }, subjects: { some: { academicYearId: year.id } } },
+    select: { ...pick, subjects: { where: { academicYearId: year.id }, select: { subject: { select: { code: true, name: true, category: true } } } } },
+    orderBy: [{ schoolClass: { order: "asc" } }, { lastName: "asc" }],
+  });
+  const aLevelWrong = aLevel.map((s) => ({ s, problems: aLevelProblems(s.subjects.map((x) => x.subject), { complete: true }) })).filter((x) => x.problems.length);
   const badPhones = guardians.filter((g) => !isUgandanPhone(g.phone) || (g.altPhone && !isUgandanPhone(g.altPhone)));
-  const issues = noSubjects.length + noEnrolment + noCombination.length + noGuardian.length + dups.length + badPhones.length;
+  const issues = noSubjects.length + noEnrolment + noCombination.length + aLevelWrong.length + noGuardian.length + dups.length + badPhones.length;
   const who = (s: (typeof everyone)[number]) => (
     <><Link className="font-medium text-brand-800 hover:underline" href={`/students/${s.id}`}>{studentName(s)}</Link> <span className="font-mono text-xs text-slate-500">{s.admissionNo} · {s.schoolClass.code} {s.stream.name}</span></>
   );
@@ -78,6 +86,19 @@ export default async function DataCheckPage() {
               {manage && <ConfirmAction action={fixMissingEnrollments} fields={{}} label="Create enrolment records" variant="default" confirm={`Create ${year.name} enrolment records from each student's current class and stream?`} />}
             </CardHeader>
             <CardContent><p className="text-sm text-slate-600">Results, promotion and class history use the year&apos;s enrolment record. The fix records each student&apos;s current class and stream for {year.name}.</p></CardContent>
+          </Card>
+        )}
+        {aLevelWrong.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle className="text-amber-800">S5–S6 subjects not matching the rule ({aLevelWrong.length})</CardTitle></CardHeader>
+            <CardContent>
+              <p className="mb-2 text-sm text-slate-600">Each A-Level student takes <b>3 principal subjects</b>, <b>General Paper</b>, and <b>either Sub-Maths or Sub-ICT</b>. Fix in <Link className="underline" href="/students/bulk">Bulk edit</Link> (choosing the combination ticks the right subjects) or on the student&apos;s profile.</p>
+              <Table>
+                <THead><tr><TH>Student</TH><TH>Problem</TH></tr></THead>
+                <tbody>{aLevelWrong.slice(0, LIMIT).map(({ s, problems }) => <TR key={s.id}><TD>{who(s)}</TD><TD className="text-xs">{problems.join("; ")}</TD></TR>)}</tbody>
+              </Table>
+              {more(aLevelWrong.length)}
+            </CardContent>
           </Card>
         )}
         {noCombination.length > 0 && (

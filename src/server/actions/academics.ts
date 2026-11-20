@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { action, zs, UserError } from "../action";
 import { audit } from "../audit";
 import { currentYearOrThrow } from "../students";
+import { aLevelProblems } from "@/lib/alevel";
 
 export const saveSubject = action(
   {
@@ -33,7 +34,9 @@ export const saveCombination = action(
   async ({ id, subjectIds, ...data }, user) => {
     const subs = await prisma.subject.findMany({ where: { id: { in: subjectIds } } });
     if (subs.some((s) => s.level !== "A_LEVEL")) throw new UserError("Combinations may only contain A-Level subjects.");
-    if (subs.filter((s) => s.category === "PRINCIPAL").length < 2) throw new UserError("A combination needs at least two principal subjects.");
+    // School rule: 3 principal subjects + General Paper + either Sub-Maths or Sub-ICT.
+    const problems = aLevelProblems(subs, { complete: true });
+    if (problems.length) throw new UserError(`A combination needs 3 principal subjects, General Paper and either Sub-Maths or Sub-ICT: ${problems.join("; ")}.`);
     await prisma.$transaction(async (tx) => {
       const c = id ? await tx.subjectCombination.update({ where: { id }, data }) : await tx.subjectCombination.create({ data });
       await tx.combinationSubject.deleteMany({ where: { combinationId: c.id } });

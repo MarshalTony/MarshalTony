@@ -8,6 +8,7 @@ import { fileFrom, saveUpload } from "../storage";
 import { generateAdmissionNo, defaultSubjectIds, assertStreamInClass, currentYearOrThrow } from "../students";
 import { generateTempPassword, hashPassword } from "../passwords";
 import { deleteStudentRecord } from "../deletion";
+import { aLevelProblems } from "@/lib/alevel";
 
 const studentFields = {
   admissionNo: upperOpt(30),
@@ -117,6 +118,10 @@ export const setStudentSubjects = action(
       const student = await tx.student.findUniqueOrThrow({ where: { id }, include: { schoolClass: true } });
       const subs = await tx.subject.findMany({ where: { id: { in: subjectIds } } });
       if (subs.some((s) => s.level !== student.schoolClass.level)) throw new UserError("All subjects must belong to the student's level.");
+      if (student.schoolClass.level === "A_LEVEL") {
+        const problems = aLevelProblems(subs);
+        if (problems.length) throw new UserError(`S5–S6 take at most 3 principal subjects plus General Paper and either Sub-Maths or Sub-ICT: ${problems.join("; ")}.`);
+      }
       await tx.student.update({ where: { id }, data: { combinationId } });
       await tx.studentSubject.deleteMany({ where: { studentId: id, academicYearId: year.id, subjectId: { notIn: subjectIds } } });
       for (const subjectId of subjectIds) {
@@ -332,7 +337,8 @@ export const bulkUpdateStudents = action(
       const cls = await tx.schoolClass.findUniqueOrThrow({ where: { id: classId }, include: { streams: true } });
       const streamIds = new Set(cls.streams.map((s) => s.id));
       // Only non-compulsory subjects of this level can be ticked here.
-      const electiveIds = new Set((await tx.subject.findMany({ where: { level: cls.level, category: { not: "COMPULSORY" } }, select: { id: true } })).map((s) => s.id));
+      const levelSubjects = await tx.subject.findMany({ where: { level: cls.level, category: { not: "COMPULSORY" } }, select: { id: true, code: true, name: true, category: true } });
+      const electiveIds = new Set(levelSubjects.map((s) => s.id));
       const comboIds = new Set((await tx.subjectCombination.findMany({ select: { id: true } })).map((c) => c.id));
       const before = new Map((await tx.student.findMany({
         where: { id: { in: rows.map((r) => r.id) } },
@@ -348,6 +354,10 @@ export const bulkUpdateStudents = action(
         if (bad) throw new UserError(`${who}: one of the ticked subjects is not an elective for ${cls.name}.`);
         const combinationId = cls.level === "A_LEVEL" ? (r.combinationId || null) : b.combinationId;
         if (combinationId && combinationId !== b.combinationId && !comboIds.has(combinationId)) throw new UserError(`${who}: unknown combination.`);
+        if (cls.level === "A_LEVEL") {
+          const problems = aLevelProblems(levelSubjects.filter((x) => r.electives.includes(x.id)));
+          if (problems.length) throw new UserError(`${who}: ${problems.join("; ")} (S5–S6: max 3 principals + General Paper + Sub-Maths or Sub-ICT).`);
+        }
 
         const data = {
           lastName: r.lastName, firstName: r.firstName, otherNames: r.otherNames || null, gender: r.gender, residence: r.residence,
