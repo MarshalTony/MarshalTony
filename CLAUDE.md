@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-20 — subject order on report cards._
+_Last updated: 2026-11-20 — results history on the student profile._
 
 ## 1. What this is
 
@@ -97,7 +97,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 
 ## 7. Feature inventory (where things live)
 
-- **Students:** list with smart search/filters (`src/server/queries/students.ts`, `components/student-filters.tsx`), profile, register/edit/delete,
+- **Students:** list with smart search/filters (`src/server/queries/students.ts`, `components/student-filters.tsx`), profile (with **Results history**: chart, card averages/grades/change/positions, subject-by-subject — `components/results-history.tsx`), register/edit/delete,
   **Bulk edit** (`students/bulk`), **Photos** (`students/photos`, upload many by admission number), **Print list** PDFs (nominal roll,
   attendance, mark sheet, parents' contacts, photo register — `api/pdf/class-list`), **Leaving & clearance** (`students/[id]/leaving`,
   class board `students/clearance`, PDFs `api/pdf/leaving/[id]`: clearance form, leaving certificate/testimonial, transfer, recommendation),
@@ -120,7 +120,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 
 ## 9. Pending / next ideas (not started unless the owner asks)
 
-- **Agreed order (owner said "we go as your order"):** ✅ report readiness tracker → ✅ activity scores from Excel → ✅ subject order on report cards → combined BOT+MOT+EOT card (**only if the owner wants it — ask**) → **next: students:** results history on profile, data clean-up check, EMIS statistics, student documents.
+- **Agreed order (owner said "we go as your order"):** ✅ report readiness tracker → ✅ activity scores from Excel → ✅ subject order on report cards → combined BOT+MOT+EOT card (**only if the owner wants it — ask**) → students: ✅ results history on profile → **next: data clean-up check** → EMIS statistics → student documents.
 
 - Termly report combining BOT + MOT + EOT on one card (if wanted).
 - Confirm admission-number / "Reg Number" format on the card.

@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Alert, Badge, Card, CardContent, CardHeader, CardTitle, DL, PageHeader, StatusBadge } from "@/components/ui/card";
 import { CheckboxField, ConfirmAction, FormDialog, Grid, SelectField, TextAreaField, TextField } from "@/components/forms";
 import { Table, THead, TH, TR, TD } from "@/components/data-table";
+import { ResultsHistory } from "@/components/results-history";
 import { balanceOf } from "@/lib/fees";
-import { fmtDate, ordinal, studentName, ugx } from "@/lib/utils";
+import { fmtDate, studentName, ugx } from "@/lib/utils";
 
 export default async function StudentProfile({ params }: { params: Promise<{ id: string }> }) {
   const user = await requirePage("students.view");
@@ -23,7 +24,6 @@ export default async function StudentProfile({ params }: { params: Promise<{ id:
       schoolClass: { include: { streams: { where: { isActive: true }, orderBy: { name: "asc" } } } }, stream: true, combination: true, user: true,
       guardians: { include: { guardian: { include: { user: true } } } },
       enrollments: { include: { academicYear: true, schoolClass: true, stream: true }, orderBy: { academicYear: { startDate: "desc" } } },
-      examResults: { include: { exam: { include: { term: { include: { academicYear: true } }, examType: true } } }, orderBy: { computedAt: "desc" }, take: 20 },
     },
   });
   if (!s) notFound();
@@ -106,27 +106,7 @@ export default async function StudentProfile({ params }: { params: Promise<{ id:
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader><CardTitle>Examination history</CardTitle></CardHeader>
-            <CardContent>
-              <Table>
-                <THead><tr><TH>Exam</TH><TH>Average</TH><TH>Points / Agg.</TH><TH>Class pos.</TH><TH>Stream pos.</TH><TH /></tr></THead>
-                <tbody>
-                  {s.examResults.map((r) => (
-                    <TR key={r.id}>
-                      <TD>{r.exam.name}<p className="text-xs text-slate-500">{r.exam.term.academicYear.name} {r.exam.term.name}</p></TD>
-                      <TD>{Number(r.average).toFixed(1)}%</TD>
-                      <TD>{r.aggregate ?? (r.points !== null ? Number(r.points) : "—")}{r.division ? ` (Div ${r.division})` : ""}</TD>
-                      <TD>{ordinal(r.classPosition)} / {r.classSize}</TD>
-                      <TD>{ordinal(r.streamPosition)} / {r.streamSize}</TD>
-                      <TD>{can(user, "reportcards.generate", "results.view") && <a className="text-sm text-brand-700 hover:underline" href={`/api/pdf/report-card?examId=${r.examId}&studentId=${s.id}`} target="_blank">Report card</a>}</TD>
-                    </TR>
-                  ))}
-                  {s.examResults.length === 0 && <TR><TD colSpan={6} className="text-slate-500">No published results yet.</TD></TR>}
-                </tbody>
-              </Table>
-            </CardContent>
-          </Card>
+          <ResultsHistory studentId={s.id} canPrint={can(user, "reportcards.generate", "results.view")} />
 
           <Card>
             <CardHeader><CardTitle>Class history</CardTitle></CardHeader>

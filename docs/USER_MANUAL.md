@@ -18,6 +18,9 @@ Sign in at **https://smis.bishopogez.com** with the username and temporary passw
 
 ## Class teachers
 
+**Student profile → Results history:** every exam's average across all subjects (as on the report card), grade, change since the previous exam, class and stream positions, a chart of progress and a subject-by-subject table for the last six exams.
+
+
 Everything above, plus: write **class-teacher comments** and conduct for your stream (Examinations → exam → Report cards → *Comments*), record **discipline incidents**, and print your stream's report cards.
 
 **Report card comments:** Examinations → the exam → *Comments* for your stream (switch streams at the top). Each student's **score and grade** are shown — their **average across all subjects** as printed on the report card (for O-Level end-of-term: subject totals out of 20 + EOT out of 80); suggested class-teacher and head-teacher comments follow this average. *Fill empty comments* writes a suggestion from the **Comment Bank** into every empty box (classmates get different wording; `{name}` becomes the first name); *↻* gives another suggestion for one student. Choose conduct from the list (Excellent … Poor) or type your own. Edit freely, then *Save* — only changed students are saved, and existing comments are never overwritten by *Fill*. Class teachers write the class-teacher column for their own stream; the headteacher and DOS their own columns.
