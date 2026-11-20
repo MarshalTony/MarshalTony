@@ -24,6 +24,9 @@ For the System Administrator, Headteacher and Director of Studies.
 
 ## Users, roles and permissions
 
+* **Staff logins (Staff → Staff logins):** every staff member with their login status. *Create login* — you type the **username and password** and tick the roles (Teacher is pre-ticked for teaching staff). *Create logins for everyone without one* — usernames are made as **first.last** and everyone gets the starting password you type. *Set password* gives someone a new password (e.g. if they forgot it). By default **"Must change the password at first sign-in"** is ticked, so each person chooses their own password the first time; anyone can change their password later with the key icon at the top. *Disable* stops a person signing in.
+* People only see the menus and pages their roles allow (e.g. a subject teacher sees Dashboard, Students, Staff, Classes & Subjects, Enter Scores, Timetables, Examinations, Attendance, Assignments, HR/leave and Announcements). To give or take away access, change their roles (Settings → Users) or what a role may do (Settings → Roles & permissions).
+
 * **Settings → Users:** create staff accounts, assign one or more roles, reset passwords (a temporary password is shown once — the user must change it), deactivate leavers (signs them out immediately). Only a System Administrator can grant the administrator role.
 * **Settings → Roles & permissions:** each role is a set of permissions. Edit roles to fit how the school works (e.g. give the Deputy fee-viewing rights). Create new roles (e.g. *Matron*). The System Administrator role always has every permission.
 * Sensitive permissions: `hr.sensitive` (salaries, bank, TIN/NSSF), `welfare.confidential` (counselling and medical), `fees.reverse` (reversals and scholarships), `finance.approve` (vouchers), `marks.approve` (approve and correct marks), `backup.manage`.

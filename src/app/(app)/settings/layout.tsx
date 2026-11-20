@@ -3,7 +3,7 @@ import { Tabs } from "@/components/tabs";
 import { PageHeader } from "@/components/ui/card";
 
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
-  const user = await requirePage("settings.manage", "users.manage", "roles.manage", "audit.view");
+  const user = await requirePage("settings.manage", "users.manage", "roles.manage", "audit.view", "backup.manage");
   const tabs = [
     can(user, "settings.manage") && { href: "/settings", label: "School profile" },
     can(user, "settings.manage") && { href: "/settings/academic", label: "Years & terms" },

@@ -1,4 +1,5 @@
-import { requirePage } from "@/server/auth";
+import { redirect } from "next/navigation";
+import { requirePage, can } from "@/server/auth";
 import { getSchool } from "@/server/school";
 import { saveSchoolProfile, saveReportTemplate, saveNotificationPrefs } from "@/server/actions/settings";
 import { ActionForm, CheckboxField, Grid, TextField, TextAreaField } from "@/components/forms";
@@ -7,7 +8,9 @@ import { ImageField } from "@/components/image-field";
 import { channelConfigured } from "@/server/messaging";
 
 export default async function SchoolSettings() {
-  await requirePage("settings.manage");
+  // The Settings menu also shows for people who only manage users, roles or the audit log: send them to their tab.
+  const user = await requirePage("settings.manage", "users.manage", "roles.manage", "audit.view", "backup.manage");
+  if (!can(user, "settings.manage")) redirect(can(user, "users.manage") ? "/settings/users" : can(user, "roles.manage") ? "/settings/roles" : can(user, "audit.view") ? "/settings/audit" : "/settings/backup");
   const s = await getSchool();
   const t = (s.reportTemplate ?? {}) as Record<string, any>;
   const n = (s.notificationPrefs ?? {}) as Record<string, any>;

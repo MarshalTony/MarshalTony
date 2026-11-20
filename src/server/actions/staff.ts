@@ -6,7 +6,8 @@ import { audit } from "../audit";
 import { optNumber } from "../schemas";
 import { can } from "../auth";
 import { fileFrom, saveUpload } from "../storage";
-import { generateTempPassword, hashPassword } from "../passwords";
+import { generateTempPassword, hashPassword, passwordProblem } from "../passwords";
+import { uniqueUsername, usernameBase } from "../users";
 import { deleteStaffRecord } from "../deletion";
 
 const fields = {
@@ -59,24 +60,72 @@ export const removeQualification = action(
   },
 );
 
+const USERNAME = z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,40}$/, "Username: 3–40 characters, letters, numbers, . _ -");
+
+/**
+ * Create a staff login. The administrator types the username and (optionally) the password; with no password a
+ * temporary one is generated and shown once. "Must change at first sign-in" is ticked by default.
+ */
 export const createStaffAccount = action(
-  { permission: "users.manage", schema: z.object({ staffId: zs.id(), username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,40}$/), roleIds: zs.ids() }) },
-  async ({ staffId, username, roleIds }, user) => {
+  {
+    permission: "users.manage", revalidate: "/staff",
+    schema: z.object({ staffId: zs.id(), username: USERNAME, roleIds: zs.ids(), password: z.string().max(128).optional(), mustChange: zs.bool() }),
+  },
+  async ({ staffId, username, roleIds, password, mustChange }, user) => {
     const st = await prisma.staff.findUniqueOrThrow({ where: { id: staffId } });
-    if (st.userId) throw new UserError("This staff member already has an account.");
+    if (st.userId) throw new UserError("This staff member already has a login.");
     if (!roleIds.length) throw new UserError("Choose at least one role.");
     const roles = await prisma.role.findMany({ where: { id: { in: roleIds } } });
     if (roles.some((r) => r.code === "ADMIN") && !user.roles.includes("ADMIN")) throw new UserError("Only administrators can grant the administrator role.");
-    const temp = generateTempPassword();
+    if (await prisma.user.findUnique({ where: { username } })) throw new UserError(`The username "${username}" is already taken.`);
+    const chosen = (password ?? "").trim();
+    if (chosen) { const problem = passwordProblem(chosen); if (problem) throw new UserError(problem); }
+    const pw = chosen || generateTempPassword();
     const emailTaken = st.email ? await prisma.user.findUnique({ where: { email: st.email } }) : null;
     const u = await prisma.user.create({
       data: {
         username, fullName: `${st.firstName} ${st.lastName}`, email: emailTaken ? null : st.email, phone: st.phone,
-        passwordHash: await hashPassword(temp), mustChangePassword: true, roles: { create: roleIds.map((roleId) => ({ roleId })) }, staff: { connect: { id: st.id } },
+        passwordHash: await hashPassword(pw), mustChangePassword: chosen ? mustChange : true,
+        roles: { create: roleIds.map((roleId) => ({ roleId })) }, staff: { connect: { id: st.id } },
       },
     });
-    await audit(user.id, "CREATE_ACCOUNT", "Staff", st.id, { userId: u.id, username });
-    return { ok: true, message: `Account created. Username: ${username} · Temporary password: ${temp}` };
+    await audit(user.id, "CREATE_ACCOUNT", "Staff", st.id, { userId: u.id, username, roles: roles.map((r) => r.code), passwordSetByAdmin: !!chosen, mustChange: chosen ? mustChange : true });
+    return { ok: true, message: chosen ? `Login created for ${st.firstName} ${st.lastName}: username ${username}.` : `Login created. Username: ${username} · Temporary password: ${pw}` };
+  },
+);
+
+/** Logins for every active staff member who has none: usernames first.last, one starting password set by the administrator. */
+export const bulkCreateStaffAccounts = action(
+  {
+    permission: "users.manage", revalidate: "/staff",
+    schema: z.object({ password: z.string().max(128), roleId: zs.id(), scope: z.enum(["TEACHING", "ALL"]), mustChange: zs.bool() }),
+  },
+  async ({ password, roleId, scope, mustChange }, user) => {
+    const problem = passwordProblem(password);
+    if (problem) throw new UserError(problem);
+    const role = await prisma.role.findUniqueOrThrow({ where: { id: roleId } });
+    if (role.code === "ADMIN") throw new UserError("Give administrator rights one person at a time.");
+    const list = await prisma.staff.findMany({ where: { userId: null, status: "ACTIVE", ...(scope === "TEACHING" ? { isTeaching: true } : {}) }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }] });
+    if (!list.length) return { ok: true, message: "Everyone in this group already has a login." };
+    const hash = await hashPassword(password);
+    const created: string[] = [];
+    await prisma.$transaction(async (tx) => {
+      const taken = new Set<string>();
+      for (const st of list) {
+        const username = await uniqueUsername(usernameBase(st.firstName, st.lastName), tx, taken);
+        taken.add(username);
+        const emailTaken = st.email ? await tx.user.findUnique({ where: { email: st.email } }) : null;
+        await tx.user.create({
+          data: {
+            username, fullName: `${st.firstName} ${st.lastName}`, email: emailTaken ? null : st.email, phone: st.phone,
+            passwordHash: hash, mustChangePassword: mustChange, roles: { create: [{ roleId }] }, staff: { connect: { id: st.id } },
+          },
+        });
+        created.push(username);
+      }
+      await audit(user.id, "BULK_CREATE_ACCOUNTS", "Staff", null, { count: created.length, role: role.code, scope, mustChange, usernames: created }, tx);
+    }, { timeout: 120_000 });
+    return { ok: true, message: `${created.length} login(s) created with the role ${role.name}. Usernames are first.last (see the list).` };
   },
 );
 

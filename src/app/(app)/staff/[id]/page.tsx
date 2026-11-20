@@ -7,7 +7,7 @@ import { requirePage, can } from "@/server/auth";
 import { addQualification, createStaffAccount, deleteStaff, removeQualification } from "@/server/actions/staff";
 import { Button } from "@/components/ui/button";
 import { Badge, Card, CardContent, CardHeader, CardTitle, DL, PageHeader, StatusBadge } from "@/components/ui/card";
-import { ConfirmAction, FormDialog, Grid, TextField } from "@/components/forms";
+import { CheckboxField, ConfirmAction, FormDialog, Grid, TextField } from "@/components/forms";
 import { Table, THead, TH, TR, TD } from "@/components/data-table";
 import { fmtDate, ugx } from "@/lib/utils";
 
@@ -101,6 +101,8 @@ export default async function StaffProfile({ params }: { params: Promise<{ id: s
                 <FormDialog trigger="Create login account" title="Create a login account" action={createStaffAccount} triggerVariant="secondary" wide>
                   <input type="hidden" name="staffId" value={s.id} />
                   <TextField label="Username" name="username" required defaultValue={`${s.firstName}.${s.lastName}`.toLowerCase().replace(/[^a-z.]/g, "")} />
+                  <TextField label="Password" name="password" required autoComplete="off" hint="At least 8 characters with letters and numbers. Tell the staff member in person." />
+                  <CheckboxField name="mustChange" label="Must change the password at first sign-in (recommended)" defaultChecked />
                   <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
                     {roles.map((r) => <label key={r.id} className="flex items-center gap-2 text-sm"><input type="checkbox" name="roleIds[]" value={r.id} defaultChecked={r.code === "TEACHER" && s.isTeaching} />{r.name}</label>)}
                   </div>

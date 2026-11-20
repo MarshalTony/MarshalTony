@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePage } from "@/server/auth";
 import { adminResetPassword, createUser, setUserActive, updateUserRoles } from "@/server/actions/settings";
-import { ConfirmAction, FormDialog, Grid, TextField } from "@/components/forms";
+import { CheckboxField, ConfirmAction, FormDialog, Grid, TextField } from "@/components/forms";
 import { FilterBar } from "@/components/filters";
 import { Badge, StatusBadge } from "@/components/ui/card";
 import { Pagination, Table, THead, TH, TR, TD, pageParams, sp, type SP } from "@/components/data-table";
@@ -39,7 +39,10 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
             <TextField label="Phone" name="phone" />
           </Grid>
           <RolePicker roles={grantable} />
-          <p className="text-xs text-slate-500">A temporary password is generated and shown once. The user must change it at first sign-in.</p>
+          <Grid>
+            <TextField label="Password" name="password" autoComplete="off" hint="Type one (8+ characters, letters and numbers), or leave empty to generate a temporary password shown once." />
+          </Grid>
+          <CheckboxField name="mustChange" label="Must change the password at first sign-in (recommended)" defaultChecked />
         </FormDialog>
       </div>
       <FilterBar
@@ -70,7 +73,11 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                     </Grid>
                     <RolePicker roles={grantable} selected={u.roles.map((r) => r.roleId)} />
                   </FormDialog>
-                  <ConfirmAction action={adminResetPassword} fields={{ userId: u.id }} label="Reset password" confirm={`Reset the password for ${u.username}? They will be signed out.`} />
+                  <FormDialog trigger="Set password" title={`New password for ${u.username}`} action={adminResetPassword} triggerVariant="outline" triggerSize="sm">
+                    <input type="hidden" name="userId" value={u.id} />
+                    <TextField label="New password" name="password" autoComplete="off" hint="Type a password (8+ characters, letters and numbers), or leave empty to generate a temporary one." />
+                    <CheckboxField name="mustChange" label="Must change it at next sign-in (recommended)" defaultChecked />
+                  </FormDialog>
                   {u.id !== me.id && (
                     <ConfirmAction
                       action={setUserActive}

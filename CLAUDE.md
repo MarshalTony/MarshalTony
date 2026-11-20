@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-20 — all student data deleted on the owner's request._
+_Last updated: 2026-11-20 — staff logins with admin-set passwords; menus follow permissions._
 
 ## 1. What this is
 
@@ -112,6 +112,11 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
   teacher averages, improvement vs comparison exam, at-risk), **Readiness** `exams/[id]/readiness` (marks / activity scores / comments
   progress per class × stream × subject, teachers to follow up; logic `src/server/exams/progress.ts` + `src/lib/exams/progress.ts`), comments page `exams/[id]/comments` (fill from bank, ↻),
   **Report Cards** (`/report-cards`), UNEB, attendance, assignments.
+- **Staff logins** (`staff/logins`, `users.manage`): per-staff create login with admin-chosen username + password and
+  "must change at first sign-in" (default on), bulk create for everyone without one (first.last usernames, one starting password),
+  set password / disable. Admin-typed passwords also in Settings → Users (create + Set password). Helpers `src/server/users.ts`.
+- **Menus follow permissions** (`src/lib/nav.ts` + `navFor`); every menu item's perms match its page's `requirePage`; Settings redirects
+  to the first tab a user may open. Verified per role by opening every visible menu link.
 - **Favicon / app icon:** `/api/icon?size=` (school logo via sharp, fallback "BO" badge; `/favicon.ico` rewritten to it in `next.config.ts`; icon tags in `src/app/layout.tsx` metadata).
 - **Fees & finance, HR/payroll, library, inventory, welfare/discipline, transport, communication, reports, settings, audit, backup, portals** — from phases 4–6 (see docs).
 

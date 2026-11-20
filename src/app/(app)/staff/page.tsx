@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download, Upload, UserPlus } from "lucide-react";
+import { Download, Upload, UserPlus, KeyRound } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ export default async function StaffList({ searchParams }: { searchParams: Promis
       <PageHeader title="Staff" description={`${total} staff`} actions={
         <>
           <Button asChild variant="outline"><a href={`/api/export/staff?status=${sp(params, "status") ?? "ACTIVE"}`}><Download />Export</a></Button>
+          {can(user, "users.manage") && <Button asChild variant="outline"><Link href="/staff/logins"><KeyRound />Staff logins</Link></Button>}
           {can(user, "staff.manage") && <Button asChild variant="outline"><Link href="/imports?kind=staff"><Upload />Import</Link></Button>}
           {can(user, "staff.manage") && <Button asChild><Link href="/staff/new"><UserPlus />Register staff</Link></Button>}
         </>

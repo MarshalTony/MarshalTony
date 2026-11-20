@@ -56,7 +56,7 @@ export const NAV: NavGroup[] = [
     items: [
       { href: "/reports", label: "Reports", icon: "chart", perms: ["results.view", "fees.view", "finance.view", "students.view"] },
       { href: "/imports", label: "Excel Imports", icon: "file", perms: ["students.import", "staff.manage", "fees.reverse", "academics.manage", "attendance.take"] },
-      { href: "/settings", label: "Settings", icon: "settings", perms: ["settings.manage", "users.manage", "roles.manage", "audit.view"] },
+      { href: "/settings", label: "Settings", icon: "settings", perms: ["settings.manage", "users.manage", "roles.manage", "audit.view", "backup.manage"] },
     ],
   },
 ];

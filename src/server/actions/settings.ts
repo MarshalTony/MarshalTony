@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { action, zs, UserError } from "../action";
 import { audit } from "../audit";
 import { fileFrom, saveUpload } from "../storage";
-import { generateTempPassword, hashPassword } from "../passwords";
+import { generateTempPassword, hashPassword, passwordProblem } from "../passwords";
 import { bandsField, divisionsField } from "../schemas";
 
 // ---------------- School profile ----------------
@@ -131,18 +131,23 @@ export const createUser = action(
     revalidate: "/settings/users",
     schema: z.object({
       username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,40}$/, "3–40 characters: letters, numbers, . _ -"),
-      fullName: zs.str(120), email: zs.email(), phone: zs.optStr(30), roleIds,
+      fullName: zs.str(120), email: zs.email(), phone: zs.optStr(30), roleIds, password: z.string().max(128).optional(), mustChange: zs.bool(),
     }),
   },
-  async ({ roleIds, ...data }, user) => {
+  async ({ roleIds, password, mustChange, ...data }, user) => {
     if (roleIds.length === 0) throw new UserError("Choose at least one role.");
     await assertCanGrant(user.roles, roleIds);
-    const temp = generateTempPassword();
+    if (await prisma.user.findUnique({ where: { username: data.username } })) throw new UserError(`The username "${data.username}" is already taken.`);
+    const chosen = (password ?? "").trim();
+    if (chosen) { const problem = passwordProblem(chosen); if (problem) throw new UserError(problem); }
+    const pw = chosen || generateTempPassword();
     const u = await prisma.user.create({
-      data: { ...data, passwordHash: await hashPassword(temp), mustChangePassword: true, roles: { create: roleIds.map((roleId) => ({ roleId })) } },
+      data: { ...data, passwordHash: await hashPassword(pw), mustChangePassword: chosen ? mustChange : true, roles: { create: roleIds.map((roleId) => ({ roleId })) } },
     });
-    await audit(user.id, "CREATE", "User", u.id, { username: u.username, roleIds });
-    return { ok: true, message: `User created. Temporary password: ${temp}`, data: { tempPassword: temp } };
+    await audit(user.id, "CREATE", "User", u.id, { username: u.username, roleIds, passwordSetByAdmin: !!chosen });
+    return chosen
+      ? { ok: true, message: `User ${u.username} created with the password you typed.` }
+      : { ok: true, message: `User created. Temporary password: ${pw}`, data: { tempPassword: pw } };
   },
 );
 
@@ -187,17 +192,22 @@ export const setUserActive = action(
 );
 
 export const adminResetPassword = action(
-  { permission: "users.manage", revalidate: "/settings/users", schema: z.object({ userId: zs.id() }) },
-  async ({ userId }, user) => {
+  { permission: "users.manage", revalidate: "/settings/users", schema: z.object({ userId: zs.id(), password: z.string().max(128).optional(), mustChange: zs.bool() }) },
+  async ({ userId, password, mustChange }, user) => {
     const target = await prisma.user.findUniqueOrThrow({ where: { id: userId }, include: { roles: { include: { role: true } } } });
     if (target.roles.some((r) => r.role.code === "ADMIN") && !user.roles.includes("ADMIN")) throw new UserError("Only a System Administrator can reset an administrator's password.");
-    const temp = generateTempPassword();
+    // The administrator may type the new password; otherwise a temporary one is generated and shown once.
+    const chosen = (password ?? "").trim();
+    if (chosen) { const problem = passwordProblem(chosen); if (problem) throw new UserError(problem); }
+    const pw = chosen || generateTempPassword();
     await prisma.$transaction([
-      prisma.user.update({ where: { id: userId }, data: { passwordHash: await hashPassword(temp), mustChangePassword: true } }),
+      prisma.user.update({ where: { id: userId }, data: { passwordHash: await hashPassword(pw), mustChangePassword: chosen ? mustChange : true } }),
       prisma.session.deleteMany({ where: { userId } }),
     ]);
-    await audit(user.id, "RESET_PASSWORD", "User", userId);
-    return { ok: true, message: `Password reset. Temporary password for ${target.username}: ${temp}`, data: { tempPassword: temp } };
+    await audit(user.id, "RESET_PASSWORD", "User", userId, { setByAdmin: !!chosen, mustChange: chosen ? mustChange : true });
+    return chosen
+      ? { ok: true, message: `New password set for ${target.username}.${mustChange ? " They must change it when they next sign in." : ""}` }
+      : { ok: true, message: `Password reset. Temporary password for ${target.username}: ${pw}`, data: { tempPassword: pw } };
   },
 );
 
