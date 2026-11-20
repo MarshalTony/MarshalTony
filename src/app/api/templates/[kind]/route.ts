@@ -1,5 +1,5 @@
 import { getCurrentUser, can } from "@/server/auth";
-import { IMPORT_KINDS } from "@/server/imports/kinds";
+import { IMPORT_KINDS, columnsOf } from "@/server/imports/kinds";
 import { buildTemplate } from "@/server/imports/excel";
 import { xlsxResponse } from "@/server/http";
 
@@ -17,6 +17,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ kind: st
     ctx[k] = v;
   }
   const rows = def.templateRows ? await def.templateRows(ctx) : [];
-  const buf = await buildTemplate(def.title, def.columns, rows, def.instructions);
+  const buf = await buildTemplate(def.title, await columnsOf(def, ctx), rows, def.instructions);
   return xlsxResponse(buf, `${kind}-template.xlsx`);
 }

@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/db";
 import { addActivity, deleteActivity, renameActivity, saveActivityScores } from "@/server/actions/activities";
 import { ActivityGrid } from "@/components/activity-grid";
-import { ConfirmAction, FormDialog, TextField } from "@/components/forms";
+import { ActionForm, ConfirmAction, FormDialog, TextField } from "@/components/forms";
+import { uploadImport } from "@/server/actions/imports";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/card";
 import { DEFAULT_ACTIVITY_BANDS, type Band } from "@/lib/cbc";
 import { studentName } from "@/lib/utils";
@@ -54,6 +57,27 @@ export async function ActivitySheet({
           </FormDialog>
         )}
       </div>
+      {!readOnly && activities.length > 0 && students.length > 0 && (
+        <details className="mb-3 rounded-lg border border-slate-200 bg-white p-3">
+          <summary className="cursor-pointer text-sm font-medium text-slate-700">Enter scores in Excel instead</summary>
+          <div className="mt-3 flex flex-wrap items-end gap-4">
+            <div className="space-y-1">
+              <p className="text-xs text-slate-500">1. Download the template — learners and chapters are filled in, with any scores already saved.</p>
+              <Button asChild variant="outline" size="sm"><a href={`/api/templates/activities?termId=${term.id}&streamId=${stream.id}&subjectId=${subject.id}`}><Download />Download pre-filled template</a></Button>
+            </div>
+            <div className="min-w-[260px] flex-1 space-y-1">
+              <p className="text-xs text-slate-500">2. Fill scores out of 3 (blank = keep), save, then upload. You will see a check before anything is saved.</p>
+              <ActionForm action={uploadImport} submitLabel="Upload and check" refresh={false}>
+                <input type="hidden" name="kind" value="activities" />
+                <input type="hidden" name="termId" value={term.id} />
+                <input type="hidden" name="streamId" value={stream.id} />
+                <input type="hidden" name="subjectId" value={subject.id} />
+                <TextField label="Completed template (.xlsx)" name="file" type="file" accept=".xlsx" required />
+              </ActionForm>
+            </div>
+          </div>
+        </details>
+      )}
       {activities.length === 0 ? (
         <Alert>Add the chapter(s) or theme(s) assessed this term to start entering scores.</Alert>
       ) : students.length === 0 ? (

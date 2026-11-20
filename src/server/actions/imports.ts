@@ -5,11 +5,11 @@ import { action, zs, UserError } from "../action";
 import { can } from "../auth";
 import { audit } from "../audit";
 import { readSheet } from "../imports/excel";
-import { IMPORT_KINDS, type Ctx } from "../imports/kinds";
+import { IMPORT_KINDS, columnsOf, type Ctx } from "../imports/kinds";
 import { fileFrom } from "../storage";
 
 export const uploadImport = action(
-  { permission: null, schema: z.object({ kind: z.string(), examId: zs.optId(), streamId: zs.optId(), subjectId: zs.optId() }) },
+  { permission: null, schema: z.object({ kind: z.string(), examId: zs.optId(), streamId: zs.optId(), subjectId: zs.optId(), termId: zs.optId() }) },
   async ({ kind, ...ctxRaw }, user, fd) => {
     const def = IMPORT_KINDS[kind];
     if (!def) throw new UserError("Unknown import type.");
@@ -25,7 +25,7 @@ export const uploadImport = action(
     if (file.size > 5 * 1024 * 1024) throw new UserError("File is too large (max 5 MB).");
     let rows;
     try {
-      rows = await readSheet(await file.arrayBuffer(), def.columns);
+      rows = await readSheet(await file.arrayBuffer(), await columnsOf(def, ctx));
     } catch (e) {
       throw new UserError(e instanceof Error ? e.message : "Could not read the file.");
     }

@@ -15,7 +15,7 @@ export const metadata = { title: "Excel imports" };
 export default async function ImportsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const user = await requirePage();
   const params = await searchParams;
-  const kinds = Object.entries(IMPORT_KINDS).filter(([k, d]) => k !== "marks" && can(user, ...d.permission));
+  const kinds = Object.entries(IMPORT_KINDS).filter(([k, d]) => k !== "marks" && k !== "activities" && can(user, ...d.permission));
   const selected = sp(params, "kind") ?? kinds[0]?.[0];
   const recent = await prisma.importBatch.findMany({ where: user.roles.includes("ADMIN") ? {} : { createdById: user.id }, orderBy: { createdAt: "desc" }, take: 15 });
   return (

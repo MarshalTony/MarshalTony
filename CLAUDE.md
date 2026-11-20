@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-20 — report readiness tracker._
+_Last updated: 2026-11-20 — activity scores from Excel._
 
 ## 1. What this is
 
@@ -43,6 +43,8 @@ See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/DEPLOYMENT.md`, `docs/API.
   arguments** (e.g. `z.enum(LIST.map((x) => …))` breaks the build: "Server Actions must be async functions").
   Put such arrays/callbacks in a non-server module (e.g. `src/server/leaving.ts`, `src/server/schemas.ts`). A test enforces exports.
 - **Multi-value form fields must be named with `[]`** (`classIds[]`) — `formToObject` only makes arrays for `name[]`.
+- Imports: `src/server/imports/kinds.ts` (ImportKind: columns or `columnsFor(ctx)`, templateRows, check, commit); always use `columnsOf(def, ctx)`
+  for templates, reading uploads, previews and error reports. Shared activity access rule: `src/server/activities-access.ts`.
 - Large client payloads: send JSON in one hidden field (`payload`/`rows`) and parse with Zod in the action (bulk edit, allocation grid).
 - After `prisma migrate dev` the running dev server keeps the old Prisma client → **restart `next dev`** (errors like "Unknown field … for include").
 - react-pdf: fonts need `outputFileTracingIncludes` (in `next.config.ts`); hyphenation disabled in `pdf-kit.tsx`;
@@ -58,7 +60,7 @@ See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/DEPLOYMENT.md`, `docs/API.
 - Dev server: `npx next dev -p 3000`. Demo data: `npm run db:demo` (demo users and their password are in `prisma/demo-data.ts`;
   `teacher1` = Okello Peter, class teacher of S1 A, English everywhere; also `bursar`, `librarian`).
   Local admin password can be reset with a bcrypt update in a scratch script (never commit it).
-- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (88 tests at last count:
+- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (90 tests at last count:
   unit in `tests/unit`, DB integration in `tests/integration`). Acceptance suite: `npm run test:acceptance`.
 - Browser verification with Playwright (pre-installed; `require('playwright')`), scripts kept in the scratchpad
   (they are not in the repo). Log in, drive the page, save PDFs and render them with `pdftoppm`/`pdftotext` to check.
@@ -101,7 +103,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
   class board `students/clearance`, PDFs `api/pdf/leaving/[id]`: clearance form, leaving certificate/testimonial, transfer, recommendation),
   promotion, transfer stream, ID cards, admission form, imports.
 - **Academics:** subjects & combinations, **Allocation grid** (`academics/grid`), allocations list, timetables, **Enter Scores**
-  (`/scores`: Activity scores out of 3 for S1–S4; Exam scores for any exam of the term), **Comment Bank** (`/comment-bank`),
+  (`/scores`: Activity scores out of 3 for S1–S4 — typed or **Excel** (pre-filled template, one column per chapter; import kind `activities` with dynamic `columnsFor`); Exam scores for any exam of the term), **Comment Bank** (`/comment-bank`),
   Examinations (create/edit/delete, results, broadsheets, **Analysis** `exams/[id]/analysis` + PDF `api/reports/analysis`:
   winner, best/weakest subject, best stream, best 10/last 10 class, best 10/last 3 per stream, subject×stream with teachers,
   teacher averages, improvement vs comparison exam, at-risk), **Readiness** `exams/[id]/readiness` (marks / activity scores / comments
@@ -118,7 +120,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 
 ## 9. Pending / next ideas (not started unless the owner asks)
 
-- **Agreed order (owner said "we go as your order"):** ✅ report readiness tracker → **next: activity scores from Excel** (pre-filled template, one column per chapter) → subject order on report cards → combined BOT+MOT+EOT card (only if wanted) → students: results history on profile, data clean-up check, EMIS statistics, student documents.
+- **Agreed order (owner said "we go as your order"):** ✅ report readiness tracker → ✅ activity scores from Excel → **next: subject order on report cards** → combined BOT+MOT+EOT card (only if wanted) → students: results history on profile, data clean-up check, EMIS statistics, student documents.
 
 - Termly report combining BOT + MOT + EOT on one card (if wanted).
 - Report-card subject order (custom order instead of alphabetical); confirm admission-number / "Reg Number" format.

@@ -6,6 +6,8 @@ import { type Column, parseDate, parseGender, parseNumber } from "./excel";
 import { generateAdmissionNo, defaultSubjectIds } from "../students";
 import { postAdjustment } from "../fees/ledger";
 import { parseMarkInput, saveMarks, type MarkEntry } from "../exams/marks";
+import { validActivityScore } from "@/lib/cbc";
+import { assertMayEnter } from "../activities-access";
 import { studentName } from "@/lib/utils";
 
 export type Ctx = Record<string, string>;
@@ -17,6 +19,8 @@ export interface ImportKind {
   columns: Column[];
   instructions: string[];
   contextKeys?: string[];
+  /** Columns that depend on the context (e.g. one per activity chapter); falls back to `columns`. */
+  columnsFor?: (ctx: Ctx) => Promise<Column[]>;
   /** Pre-filled rows for the template (e.g. the stream's students for marks). */
   templateRows?: (ctx: Ctx) => Promise<Record<string, string | number>[]>;
   check: (rows: { rowNumber: number; values: Record<string, string> }[], ctx: Ctx) => Promise<CheckedRow[]>;
@@ -394,4 +398,108 @@ const marks: ImportKind = {
   },
 };
 
-export const IMPORT_KINDS: Record<string, ImportKind> = { students, staff, opening_balances: openingBalances, allocations, attendance, marks };
+
+// ---------------------------------------------------------------- Activities of Integration (S1–S4)
+async function activityContext(ctx: Ctx) {
+  const stream = await prisma.stream.findUniqueOrThrow({ where: { id: ctx.streamId }, include: { schoolClass: true } });
+  const term = await prisma.term.findUniqueOrThrow({ where: { id: ctx.termId } });
+  const activities = await prisma.learningActivity.findMany({ where: { termId: ctx.termId, classId: stream.classId, subjectId: ctx.subjectId }, orderBy: { order: "asc" } });
+  return { stream, term, activities };
+}
+const activityCol = (a: { id: string; title: string }, i: number): Column => ({ key: `a_${a.id}`, header: `${i + 1}. ${a.title} (/3)`, note: "0 to 3, e.g. 2.5; blank = leave as it is" });
+
+const activities: ImportKind = {
+  title: "Activities of Integration scores",
+  permission: ["marks.enter", "marks.enter.any"],
+  contextKeys: ["termId", "streamId", "subjectId"],
+  instructions: [
+    "Download this template from Enter Scores → Activity scores: it lists the learners in the stream who take the subject, with one column per chapter / theme.",
+    "Score each chapter out of 3 (one decimal place, e.g. 2.5). Leave a cell blank to keep what is already saved.",
+    "Add chapters on the Enter Scores page first; do not change the header row or the Admission No column.",
+  ],
+  columns: [
+    { key: "admissionNo", header: "Admission No", required: true },
+    { key: "name", header: "Student Name" },
+    { key: "remark", header: "Competency remark", note: "Optional, up to 200 characters" },
+  ],
+  async columnsFor(ctx) {
+    const { activities: list } = await activityContext(ctx);
+    return [
+      { key: "admissionNo", header: "Admission No", required: true },
+      { key: "name", header: "Student Name" },
+      ...list.map(activityCol),
+      { key: "remark", header: "Competency remark", note: "Optional, up to 200 characters" },
+    ];
+  },
+  async templateRows(ctx) {
+    const { activities: list, term } = await activityContext(ctx);
+    const learners = await prisma.student.findMany({
+      where: { streamId: ctx.streamId, status: "ACTIVE", subjects: { some: { subjectId: ctx.subjectId, academicYearId: term.academicYearId } } },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      include: { activityScores: { where: { activityId: { in: list.map((a) => a.id) } } }, competencyRemarks: { where: { termId: ctx.termId, subjectId: ctx.subjectId } } },
+    });
+    return learners.map((st) => ({
+      admissionNo: st.admissionNo, name: studentName(st),
+      ...Object.fromEntries(list.map((a) => [`a_${a.id}`, (() => { const x = st.activityScores.find((sc) => sc.activityId === a.id); return x ? Number(x.score) : ""; })()])),
+      remark: st.competencyRemarks[0]?.remark ?? "",
+    }));
+  },
+  async check(rows, ctx) {
+    const { stream, term, activities: list } = await activityContext(ctx).catch(() => ({ stream: null, term: null, activities: [] as { id: string; title: string }[] }));
+    if (!stream || !term) return rows.map((r) => ({ ...r, errors: ["Term, stream or subject not found"] }));
+    if (stream.schoolClass.level !== "O_LEVEL") return rows.map((r) => ({ ...r, errors: ["Activities of Integration are only for S1–S4"] }));
+    if (!list.length) return rows.map((r) => ({ ...r, errors: ["No chapters yet — add the chapters on the Enter Scores page first"] }));
+    const learners = await prisma.student.findMany({
+      where: { streamId: ctx.streamId, status: "ACTIVE", subjects: { some: { subjectId: ctx.subjectId, academicYearId: term.academicYearId } } },
+      select: { id: true, admissionNo: true },
+    });
+    const by = new Map(learners.map((x) => [x.admissionNo.toUpperCase(), x.id]));
+    const dup = dupes(rows, "admissionNo");
+    return rows.map((r) => {
+      const errors: string[] = [];
+      const id = by.get((r.values.admissionNo ?? "").trim().toUpperCase());
+      if (!id) errors.push(`Student "${r.values.admissionNo}" is not in this stream or does not take the subject`);
+      if (dup.has(r.rowNumber)) errors.push(dup.get(r.rowNumber)!);
+      const scores: { activityId: string; score: number }[] = [];
+      list.forEach((a, i) => {
+        const raw = r.values[`a_${a.id}`] ?? "";
+        const v = validActivityScore(raw);
+        if (v === "invalid") errors.push(`Chapter ${i + 1} (${a.title}): "${raw}" must be a score from 0 to 3`);
+        else if (v !== null) scores.push({ activityId: a.id, score: v });
+      });
+      const remark = (r.values.remark ?? "").trim();
+      if (remark.length > 200) errors.push("Competency remark is longer than 200 characters");
+      return { ...r, errors, data: errors.length ? undefined : { studentId: id, scores, remark } };
+    });
+  },
+  async commit(tx, rows, ctx, user) {
+    await assertMayEnter(user, ctx.termId, ctx.subjectId, { streamId: ctx.streamId });
+    let scores = 0, remarks = 0;
+    for (const r of rows) {
+      for (const sc of r.data.scores as { activityId: string; score: number }[]) {
+        await tx.activityScore.upsert({
+          where: { activityId_studentId: { activityId: sc.activityId, studentId: r.data.studentId } },
+          update: { score: sc.score, enteredById: user.id },
+          create: { activityId: sc.activityId, studentId: r.data.studentId, score: sc.score, enteredById: user.id },
+        });
+        scores++;
+      }
+      if (r.data.remark) {
+        await tx.competencyRemark.upsert({
+          where: { termId_studentId_subjectId: { termId: ctx.termId, studentId: r.data.studentId, subjectId: ctx.subjectId } },
+          update: { remark: r.data.remark, enteredById: user.id },
+          create: { termId: ctx.termId, studentId: r.data.studentId, subjectId: ctx.subjectId, remark: r.data.remark, enteredById: user.id },
+        });
+        remarks++;
+      }
+    }
+    return `${scores} activity score(s) and ${remarks} remark(s) imported for ${rows.length} learner(s).`;
+  },
+};
+
+export const IMPORT_KINDS: Record<string, ImportKind> = { students, staff, opening_balances: openingBalances, allocations, attendance, marks, activities };
+
+/** The columns of an import for its context (dynamic for activities). */
+export async function columnsOf(def: ImportKind, ctx: Ctx): Promise<Column[]> {
+  return def.columnsFor ? def.columnsFor(ctx) : def.columns;
+}

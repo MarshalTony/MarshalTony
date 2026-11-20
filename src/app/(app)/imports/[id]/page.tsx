@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Download } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePage } from "@/server/auth";
-import { IMPORT_KINDS } from "@/server/imports/kinds";
+import { IMPORT_KINDS, columnsOf } from "@/server/imports/kinds";
 import { cancelImport, commitImport } from "@/server/actions/imports";
 import { ActionForm, CheckboxField, ConfirmAction } from "@/components/forms";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ export default async function ImportPreview({ params }: { params: Promise<{ id: 
   const batch = await prisma.importBatch.findUnique({ where: { id } });
   if (!batch || (batch.createdById !== user.id && !user.roles.includes("ADMIN"))) notFound();
   const def = IMPORT_KINDS[batch.kind];
+  const columns = def ? await columnsOf(def, (batch.context ?? {}) as Record<string, string>).catch(() => def.columns) : [];
   const rows = batch.rows as { rowNumber: number; values: Record<string, string> }[];
   const errors = batch.errors as { rowNumber: number; errors: string[] }[];
   const errByRow = new Map(errors.map((e) => [e.rowNumber, e.errors]));
@@ -49,7 +50,7 @@ export default async function ImportPreview({ params }: { params: Promise<{ id: 
         <Button asChild variant="outline" className="mb-3"><a href={`/api/imports/${batch.id}/errors`}><Download />Download error report</a></Button>
       )}
       <Table>
-        <THead><tr><TH>Row</TH><TH>Check</TH>{def?.columns.map((c) => <TH key={c.key}>{c.header}</TH>)}</tr></THead>
+        <THead><tr><TH>Row</TH><TH>Check</TH>{columns.map((c) => <TH key={c.key}>{c.header}</TH>)}</tr></THead>
         <tbody>
           {rows.slice(0, 500).map((r) => {
             const errs = errByRow.get(r.rowNumber);
@@ -57,7 +58,7 @@ export default async function ImportPreview({ params }: { params: Promise<{ id: 
               <TR key={r.rowNumber} className={errs ? "bg-red-50/60" : ""}>
                 <TD>{r.rowNumber}</TD>
                 <TD className="min-w-[200px] text-xs">{errs ? <span className="text-red-700">{errs.join("; ")}</span> : <span className="text-emerald-700">OK</span>}</TD>
-                {def?.columns.map((c) => <TD key={c.key} className="whitespace-nowrap text-xs">{r.values[c.key]}</TD>)}
+                {columns.map((c) => <TD key={c.key} className="whitespace-nowrap text-xs">{r.values[c.key]}</TD>)}
               </TR>
             );
           })}
