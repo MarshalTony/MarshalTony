@@ -112,6 +112,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
   teacher averages, improvement vs comparison exam, at-risk), **Readiness** `exams/[id]/readiness` (marks / activity scores / comments
   progress per class × stream × subject, teachers to follow up; logic `src/server/exams/progress.ts` + `src/lib/exams/progress.ts`), comments page `exams/[id]/comments` (fill from bank, ↻),
   **Report Cards** (`/report-cards`), UNEB, attendance, assignments.
+- **Favicon / app icon:** `/api/icon?size=` (school logo via sharp, fallback "BO" badge; `/favicon.ico` rewritten to it in `next.config.ts`; icon tags in `src/app/layout.tsx` metadata).
 - **Fees & finance, HR/payroll, library, inventory, welfare/discipline, transport, communication, reports, settings, audit, backup, portals** — from phases 4–6 (see docs).
 
 ## 8. Live data state (2026-11-20, after the owner's bulk delete)

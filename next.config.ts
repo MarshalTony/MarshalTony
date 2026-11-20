@@ -32,6 +32,10 @@ const nextConfig: NextConfig = {
     "/api/**/*": ["./node_modules/pdfkit/js/standard-fonts/**/*", "./node_modules/pdfkit/js/data/**/*"],
   },
   experimental: { serverActions: { bodySizeLimit: "10mb" } },
+  // Browsers ask for /favicon.ico on their own; serve the school-logo icon there too.
+  async rewrites() {
+    return [{ source: "/favicon.ico", destination: "/api/icon?size=48" }];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

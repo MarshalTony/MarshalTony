@@ -5,7 +5,7 @@ For the System Administrator, Headteacher and Director of Studies.
 ## First sign-in
 
 1. Go to https://smis.bishopogez.com and sign in as `admin` with the temporary password from setup. You must choose a new password (8+ characters, letters and numbers).
-2. **Settings → School profile:** check name, motto, address, phone (+256 772 314 931), email (ogezhigh@gmail.com), website, UNEB centre numbers, headteacher's name; upload the school logo (PNG/JPG). Set the report-card options and the report footer.
+2. **Settings → School profile:** check name, motto, address, phone (+256 772 314 931), email (ogezhigh@gmail.com), website, UNEB centre numbers, headteacher's name; upload the school logo (PNG/JPG) — it is also used as the browser-tab and phone home-screen icon. Set the report-card options and the report footer.
 
 ## Before go-live (checklist)
 
