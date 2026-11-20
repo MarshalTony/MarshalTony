@@ -33,7 +33,8 @@ export async function tableReport(spec: ReportSpec, format: string | null, user:
   const b = await loadBranding();
   if (format === "xlsx" || format === "excel") {
     const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet(spec.title.slice(0, 31));
+    // Excel forbids * ? : \ / [ ] in sheet names and allows at most 31 characters.
+    const ws = wb.addWorksheet(spec.title.replace(/[*?:\\/[\]]/g, " ").replace(/\s+/g, " ").trim().slice(0, 31) || "Report");
     ws.addRow([b.name.toUpperCase()]).font = { bold: true, size: 14, color: { argb: "FF1D4ED8" } };
     ws.addRow([b.contacts]).font = { size: 9, color: { argb: "FF64748B" } };
     ws.addRow([spec.title]).font = { bold: true, size: 12 };

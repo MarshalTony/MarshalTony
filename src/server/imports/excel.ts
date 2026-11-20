@@ -55,7 +55,7 @@ export async function readSheet(buf: ArrayBuffer, columns: Column[]) {
 export async function buildTemplate(title: string, columns: Column[], rows: Record<string, string | number>[] = [], instructions: string[] = []) {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Bishop Ogez SMIS";
-  const ws = wb.addWorksheet(title.slice(0, 31));
+  const ws = wb.addWorksheet(title.replace(/[*?:\\/[\]]/g, " ").replace(/\s+/g, " ").trim().slice(0, 31) || "Template");
   ws.columns = columns.map((c) => ({ header: c.required ? `${c.header}*` : c.header, key: c.key, width: Math.max(14, c.header.length + 4) }));
   const head = ws.getRow(1);
   head.font = { bold: true, color: { argb: "FFFFFFFF" } };
