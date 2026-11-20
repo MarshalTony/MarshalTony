@@ -3,17 +3,28 @@ import { marksApprovalRequired } from "./approval-setting";
 import type { Level } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
-  computeResults, compositePercentage, type MarkInput, type Rule, type Scale, type SubjectCategory,
+  combinePapers, computeResults, compositePercentage, type MarkInput, type Rule, type Scale, type SubjectCategory,
 } from "@/lib/exams/engine";
+import { DEFAULT_PAPER_BANDS, gradeSubject, type PaperBand } from "@/lib/uace";
 import { UserError } from "../action";
 
 export async function loadScales(level: Level): Promise<Scale[]> {
-  const scales = await prisma.gradingScale.findMany({ where: { level, isDefault: true, appliesTo: { not: "ACTIVITY" } }, include: { bands: true } });
+  const scales = await prisma.gradingScale.findMany({ where: { level, isDefault: true, appliesTo: { notIn: ["ACTIVITY", "PAPER"] } }, include: { bands: true } });
   return scales.map((s) => ({
     appliesTo: s.appliesTo,
     bands: s.bands.map((b) => ({ grade: b.grade, minScore: Number(b.minScore), maxScore: Number(b.maxScore), points: Number(b.points), remark: b.remark })),
   }));
 }
+
+/** A-Level paper grade bands (D1–F9) from Settings → Grading, or the defaults. */
+export async function loadPaperBands(): Promise<PaperBand[]> {
+  const sc = await prisma.gradingScale.findFirst({ where: { level: "A_LEVEL", appliesTo: "PAPER", isDefault: true }, include: { bands: true } });
+  return sc?.bands.length
+    ? sc.bands.map((b) => ({ grade: b.grade, minScore: Number(b.minScore), maxScore: Number(b.maxScore), points: Number(b.points), remark: b.remark }))
+    : DEFAULT_PAPER_BANDS;
+}
+
+const toInput = (m: { score: unknown; status: MarkInput["status"] }): MarkInput => ({ score: m.score === null ? null : Number(m.score), status: m.status });
 
 export async function loadRule(level: Level): Promise<Rule & { topClassCount: number; topStreamCount: number }> {
   const r = await prisma.resultRule.findUnique({ where: { level } });
@@ -53,25 +64,50 @@ async function effectiveMarks(examId: string, includeUnapproved: boolean) {
       .filter((m) => !ok || ok.has(`${m.streamId}:${m.subjectId}`));
   }
 
-  if (!exam.isComposite) {
-    for (const m of await rawMarks(examId)) {
-      if (!out.has(m.studentId)) out.set(m.studentId, new Map());
-      out.get(m.studentId)!.set(m.subjectId, { score: m.score === null ? null : Number(m.score), status: m.status });
+  // Subjects sat as several papers: marks are stored per paper and combined here (mean of the papers).
+  const paperCount = new Map((await prisma.subject.findMany({ select: { id: true, paperCount: true } })).map((x) => [x.id, x.paperCount]));
+  /** studentId → subjectId → { combined mark, the paper marks, class } */
+  function collapse(rows: Awaited<ReturnType<typeof rawMarks>>) {
+    const by = new Map<string, Map<string, { papers: (MarkInput | undefined)[]; classId: string }>>();
+    for (const m of rows) {
+      const n = paperCount.get(m.subjectId) ?? 1;
+      if (m.paper > n) continue; // paper no longer part of the subject
+      if (!by.has(m.studentId)) by.set(m.studentId, new Map());
+      const subj = by.get(m.studentId)!;
+      if (!subj.has(m.subjectId)) subj.set(m.subjectId, { papers: Array.from({ length: n }, () => undefined), classId: m.classId });
+      subj.get(m.subjectId)!.papers[m.paper - 1] = toInput(m);
     }
-    return { marks: out, maxOverride };
+    return by;
+  }
+
+  if (!exam.isComposite) {
+    const papers = new Map<string, Map<string, (MarkInput | undefined)[]>>();
+    for (const [sid, subj] of collapse(await rawMarks(examId))) {
+      const map = new Map<string, MarkInput>();
+      const pm = new Map<string, (MarkInput | undefined)[]>();
+      for (const [sub, e] of subj) {
+        const c = combinePapers(e.papers);
+        if (c) map.set(sub, c);
+        pm.set(sub, e.papers);
+      }
+      out.set(sid, map);
+      papers.set(sid, pm);
+    }
+    return { marks: out, maxOverride, papers };
   }
 
   if (!exam.components.length) throw new UserError("This combined exam has no component exams configured.");
   const parts = await Promise.all(
     exam.components.map(async (c) => {
-      const marks = await rawMarks(c.componentExamId);
-      const classOf = new Map(marks.map((m) => [m.studentId, m.classId]));
       const max = new Map(c.componentExam.subjects.map((s) => [`${s.classId}:${s.subjectId}`, Number(s.maxMarks)]));
       const byStudent = new Map<string, Map<string, { mark: MarkInput; max: number }>>();
-      for (const m of marks) {
-        const mx = max.get(`${classOf.get(m.studentId)}:${m.subjectId}`) ?? 100;
-        if (!byStudent.has(m.studentId)) byStudent.set(m.studentId, new Map());
-        byStudent.get(m.studentId)!.set(m.subjectId, { mark: { score: m.score === null ? null : Number(m.score), status: m.status }, max: mx });
+      for (const [sid, subj] of collapse(await rawMarks(c.componentExamId))) {
+        for (const [sub, e] of subj) {
+          const mark = combinePapers(e.papers);
+          if (!mark) continue;
+          if (!byStudent.has(sid)) byStudent.set(sid, new Map());
+          byStudent.get(sid)!.set(sub, { mark, max: max.get(`${e.classId}:${sub}`) ?? 100 });
+        }
       }
       return { weight: Number(c.weight), byStudent };
     }),
@@ -89,7 +125,7 @@ async function effectiveMarks(examId: string, includeUnapproved: boolean) {
     }
     out.set(sid, map);
   }
-  return { marks: out, maxOverride: new Map([["*", 100]]) };
+  return { marks: out, maxOverride: new Map([["*", 100]]), papers: null };
 }
 
 export async function generateResults(examId: string, opts: { includeUnapproved?: boolean } = {}) {
@@ -98,7 +134,8 @@ export async function generateResults(examId: string, opts: { includeUnapproved?
   if (!exam.subjects.length) throw new UserError("Configure the exam subjects first.");
   // Without DOS approval (the default), every saved mark counts.
   const includeUnapproved = !!opts.includeUnapproved || !(await marksApprovalRequired());
-  const { marks, maxOverride } = await effectiveMarks(examId, includeUnapproved);
+  const { marks, maxOverride, papers } = await effectiveMarks(examId, includeUnapproved);
+  const paperBands = await loadPaperBands();
   const yearId = exam.term.academicYearId;
   const summary: { classId: string; students: number; ranked: number }[] = [];
 
@@ -109,6 +146,19 @@ export async function generateResults(examId: string, opts: { includeUnapproved?
     const [scales, rule] = await Promise.all([loadScales(level), loadRule(level)]);
     if (!scales.length) throw new UserError(`No default grading scale is set for ${level === "O_LEVEL" ? "O-Level" : "A-Level"}.`);
     const subs = exam.subjects.filter((s) => s.classId === ec.classId);
+    // A-Level: each subject's grade and points come from its paper grades (D1–F9 → A–F, UACE rules), as on the report card.
+    if (level === "A_LEVEL" && papers) {
+      for (const es of subs) {
+        const max = Number(es.maxMarks) || 100;
+        for (const [sid, pm] of papers) {
+          const ps = pm.get(es.subjectId);
+          const m = marks.get(sid)?.get(es.subjectId);
+          if (!ps || !m || m.status !== "PRESENT") continue;
+          const g = gradeSubject(es.subject.category, ps.filter((p) => p?.status !== "EXEMPTED").map((p) => (p?.status === "PRESENT" && p.score !== null ? (p.score / max) * 100 : 0)), paperBands);
+          if (g) m.override = { grade: g.grade, points: g.points, remark: g.remark };
+        }
+      }
+    }
     // Class and stream come from the enrollment for the EXAM's academic year (not the student's
     // current class), so results for past exams stay correct after promotions and stream transfers.
     // Students who have since left are included only if marks were recorded for them.

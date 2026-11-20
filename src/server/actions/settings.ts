@@ -33,7 +33,7 @@ export const saveReportTemplate = action(
     permission: "settings.manage",
     schema: z.object({
       showPhoto: zs.bool(), showSubjectPositions: zs.bool(), showStreamPosition: zs.bool(), showClassPosition: zs.bool(),
-      showAttendance: zs.bool(), showGradingKey: zs.bool(), cbcOLevel: zs.bool(), requireMarksApproval: zs.bool(), classTeacherLabel: zs.str(60), dosLabel: zs.str(60), headLabel: zs.str(60),
+      showAttendance: zs.bool(), showGradingKey: zs.bool(), cbcOLevel: zs.bool(), aLevelPapers: zs.bool(), requireMarksApproval: zs.bool(), classTeacherLabel: zs.str(60), dosLabel: zs.str(60), headLabel: zs.str(60),
     }),
   },
   async (input, user) => {
@@ -244,7 +244,7 @@ export const saveGradingScale = action(
     permission: "exams.manage",
     revalidate: "/settings/grading",
     schema: z.object({
-      id: zs.optId(), name: zs.str(80), level: z.enum(["O_LEVEL", "A_LEVEL"]), appliesTo: z.enum(["ALL", "PRINCIPAL", "SUBSIDIARY", "ACTIVITY"]), isDefault: zs.bool(),
+      id: zs.optId(), name: zs.str(80), level: z.enum(["O_LEVEL", "A_LEVEL"]), appliesTo: z.enum(["ALL", "PRINCIPAL", "SUBSIDIARY", "ACTIVITY", "PAPER"]), isDefault: zs.bool(),
       bands: bandsField,
     }),
   },

@@ -107,7 +107,7 @@ export default async function ReadinessPage({ params, searchParams }: { params: 
                       <TD className="whitespace-nowrap">{c.code} {c.streams.find((x) => x.id === r.streamId)?.name}</TD>
                       <TD className="font-medium">{r.subject}</TD>
                       <TD className={r.teachers.length ? "text-xs" : "text-xs text-red-700"}>{r.teachers.join(" / ") || "no teacher allocated"}</TD>
-                      <TD><Link href={`/exams/${id}/marks?streamId=${r.streamId}&subjectId=${r.subjectId}`} className="block hover:opacity-80"><Meter done={r.marks} expected={r.learners} state={r.marksState} /></Link></TD>
+                      <TD><Link href={`/exams/${id}/marks?streamId=${r.streamId}&subjectId=${r.subjectId}`} className="block hover:opacity-80"><Meter done={r.marks} expected={r.marksExpected} state={r.marksState} label={r.papers > 1 ? `${r.marks} / ${r.marksExpected} (${r.papers} papers)` : undefined} /></Link></TD>
                       {c.oLevel && (
                         <TD>
                           {r.chapters === 0

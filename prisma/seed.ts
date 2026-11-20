@@ -7,6 +7,7 @@ import { PrismaClient, type Level, type SubjectCategory } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import { PERMISSIONS, DEFAULT_ROLES, permissionModule } from "../src/lib/permissions";
+import { DEFAULT_PAPER_BANDS } from "../src/lib/uace";
 
 const prisma = new PrismaClient();
 const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
@@ -157,7 +158,9 @@ async function main() {
     ["S-MTC", "Subsidiary Mathematics", "A_LEVEL", "SUBSIDIARY", "Mathematics", false],
   ];
   for (const [code, name, level, category, dep, hasPractical] of subjects) {
-    await prisma.subject.upsert({ where: { code }, update: {}, create: { code, name, level, category, hasPractical, departmentId: dept[dep] } });
+    // A-Level subjects are sat as 2 papers, except General Paper and Sub-Maths (1 paper).
+    const paperCount = level === "A_LEVEL" && code !== "GP" && code !== "S-MTC" ? 2 : 1;
+    await prisma.subject.upsert({ where: { code }, update: {}, create: { code, name, level, category, hasPractical, paperCount, departmentId: dept[dep] } });
   }
   const sub = Object.fromEntries((await prisma.subject.findMany()).map((x) => [x.code, x.id]));
 
@@ -261,6 +264,16 @@ async function main() {
           { grade: "2", minScore: 1.5, maxScore: 2.49, points: 2, remark: "Moderate", description: "Many LOs achieved, enough for overall achievement" },
           { grade: "1", minScore: 0.1, maxScore: 1.49, points: 1, remark: "Basic", description: "Few LOs achieved, but not sufficient for overall achievement" },
         ] },
+      },
+    });
+  }
+
+  // A-Level paper grades (D1–F9) used on the A-Level report; subject grades A–F come from the paper grades (UACE rules).
+  if (!(await prisma.gradingScale.findFirst({ where: { level: "A_LEVEL", appliesTo: "PAPER" } }))) {
+    await prisma.gradingScale.create({
+      data: {
+        name: "A-Level Paper Grades (D1–F9)", level: "A_LEVEL", appliesTo: "PAPER", isDefault: true,
+        bands: { create: DEFAULT_PAPER_BANDS },
       },
     });
   }

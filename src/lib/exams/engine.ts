@@ -50,6 +50,23 @@ export interface StudentInput {
 export interface MarkInput {
   score: number | null;
   status: "PRESENT" | "ABSENT" | "EXEMPTED";
+  /** Grade decided outside the percentage scale (A-Level: from the paper grades, UACE rules). */
+  override?: { grade: string; points: number; remark: string };
+}
+
+/**
+ * Combines a subject's paper marks (index 0 = paper 1) into one mark: the mean over the papers sat or due
+ * (a paper with no mark or ABS counts 0 once any paper has a mark; EX papers are left out).
+ * All ABS/EX → that status; no marks at all → undefined.
+ */
+export function combinePapers(papers: (MarkInput | undefined)[]): MarkInput | undefined {
+  if (papers.length <= 1) return papers[0];
+  const due = papers.filter((p) => p?.status !== "EXEMPTED");
+  const present = due.filter((p) => p?.status === "PRESENT" && p.score !== null && p.score !== undefined);
+  if (present.length) return { score: round2(present.reduce((a, p) => a + p!.score!, 0) / due.length), status: "PRESENT" };
+  const any = papers.find((p) => p);
+  if (!any) return undefined;
+  return { score: null, status: papers.some((p) => p?.status === "ABSENT") ? "ABSENT" : any.status };
 }
 
 export interface SubjectOutcome {
@@ -173,7 +190,11 @@ export function computeResults(args: {
       let grade: string | null = null;
       let points: number | null = null;
       let remark: string | null = null;
-      if (counted && percentage !== null) {
+      if (counted && percentage !== null && m?.override) {
+        grade = m.override.grade;
+        points = m.override.points;
+        remark = m.override.remark;
+      } else if (counted && percentage !== null) {
         const scale = scaleFor(cfg.category, scales);
         const band = scale ? gradeFor(percentage, scale.bands) : null;
         if (band) {

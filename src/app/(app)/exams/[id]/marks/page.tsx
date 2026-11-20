@@ -21,7 +21,7 @@ export default async function MarksPage({ params, searchParams }: { params: Prom
   return (
     <>
       <PageHeader title="Marks entry" description={exam.name} actions={<Button asChild variant="outline"><Link href={`/exams/${id}`}>Back to exam</Link></Button>} />
-      <MarksSheet user={user} examId={id} streamId={streamId} subjectId={subjectId} correctionRequested={sp(q, "correct") === "1"} selfHref={`/exams/${id}/marks?streamId=${streamId}&subjectId=${subjectId}`} />
+      <MarksSheet user={user} examId={id} streamId={streamId} subjectId={subjectId} paper={Number(sp(q, "paper")) || 1} correctionRequested={sp(q, "correct") === "1"} selfHref={`/exams/${id}/marks?streamId=${streamId}&subjectId=${subjectId}`} />
     </>
   );
 }

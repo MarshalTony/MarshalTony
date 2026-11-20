@@ -4,7 +4,7 @@ import { activityProgress, progressOf, type Progress } from "@/lib/exams/progres
 
 export type SubjectRow = {
   classId: string; streamId: string; subjectId: string; subject: string; teachers: string[];
-  learners: number; marks: number; marksState: Progress;
+  learners: number; papers: number; marks: number; marksExpected: number; marksState: Progress; // marks = paper marks (learners × papers expected)
   chapters: number | null; actDone: number; actExpected: number; actState: Progress; // chapters null = A-Level (no activities)
 };
 export type StreamComments = { streamId: string; learners: number; classTeacher: number; headteacher: number; classTeacherName: string | null };
@@ -22,7 +22,7 @@ export async function loadProgress(examId: string) {
   const classIds = exam.classes.map((c) => c.classId);
   const [taking, marks, activities, scores, comments, allocations] = await Promise.all([
     prisma.studentSubject.findMany({ where: { academicYearId: yearId, student: { status: "ACTIVE", classId: { in: classIds } } }, select: { subjectId: true, studentId: true, student: { select: { streamId: true } } } }),
-    prisma.mark.findMany({ where: { examId }, select: { subjectId: true, studentId: true } }),
+    prisma.mark.findMany({ where: { examId }, select: { subjectId: true, studentId: true, paper: true, subject: { select: { paperCount: true } } } }),
     prisma.learningActivity.findMany({ where: { termId: exam.termId, classId: { in: classIds } }, select: { id: true, classId: true, subjectId: true } }),
     prisma.activityScore.findMany({ where: { activity: { termId: exam.termId, classId: { in: classIds } }, student: { status: "ACTIVE" } }, select: { activityId: true, studentId: true } }),
     prisma.reportComment.findMany({ where: { examId }, select: { studentId: true, classTeacherComment: true, headteacherComment: true } }),
@@ -35,7 +35,7 @@ export async function loadProgress(examId: string) {
   const inc = (k: string) => count.set(k, (count.get(k) ?? 0) + 1);
   for (const t of taking) inc(`take:${t.subjectId}:${t.student.streamId}`);
   const takers = new Set(taking.map((t) => `${t.studentId}:${t.subjectId}`));
-  for (const m of marks) if (takers.has(`${m.studentId}:${m.subjectId}`)) inc(`mark:${m.subjectId}:${streamOf.get(m.studentId)}`);
+  for (const m of marks) if (m.paper <= m.subject.paperCount && takers.has(`${m.studentId}:${m.subjectId}`)) inc(`mark:${m.subjectId}:${streamOf.get(m.studentId)}`);
   const actById = new Map(activities.map((a) => [a.id, a]));
   for (const a of activities) inc(`chap:${a.classId}:${a.subjectId}`);
   for (const s of scores) {
@@ -51,11 +51,13 @@ export async function loadProgress(examId: string) {
     const rows: SubjectRow[] = c.streams.flatMap((st) => subs.map((es) => {
       const learners = count.get(`take:${es.subjectId}:${st.id}`) ?? 0;
       const m = count.get(`mark:${es.subjectId}:${st.id}`) ?? 0;
+      const papers = es.subject.paperCount;
+      const expected = learners * papers;
       const chapters = oLevel ? count.get(`chap:${c.id}:${es.subjectId}`) ?? 0 : null;
       const act = chapters === null ? { done: 0, expected: 0, state: "na" as Progress } : activityProgress(chapters, learners, count.get(`ascore:${es.subjectId}:${st.id}`) ?? 0);
       return {
         classId: c.id, streamId: st.id, subjectId: es.subjectId, subject: es.subject.name, teachers: teacherOf.get(`${es.subjectId}:${st.id}`) ?? [],
-        learners, marks: Math.min(m, learners), marksState: progressOf(m, learners),
+        learners, papers, marks: Math.min(m, expected), marksExpected: expected, marksState: progressOf(m, expected),
         chapters, actDone: act.done, actExpected: act.expected, actState: act.state,
       };
     })).filter((r) => r.learners > 0);
@@ -75,7 +77,7 @@ export async function loadProgress(examId: string) {
   const sum = (f: (r: SubjectRow) => number) => all.reduce((a, r) => a + f(r), 0);
   const allComments = classes.flatMap((c) => c.comments);
   const totals = {
-    marks: { done: sum((r) => r.marks), expected: sum((r) => r.learners) },
+    marks: { done: sum((r) => r.marks), expected: sum((r) => r.marksExpected) },
     activities: { done: sum((r) => r.actDone), expected: sum((r) => r.actExpected), missingChapters: all.filter((r) => r.chapters === 0).length },
     classTeacher: { done: allComments.reduce((a, x) => a + x.classTeacher, 0), expected: allComments.reduce((a, x) => a + x.learners, 0) },
     headteacher: { done: allComments.reduce((a, x) => a + x.headteacher, 0), expected: allComments.reduce((a, x) => a + x.learners, 0) },
@@ -84,7 +86,7 @@ export async function loadProgress(examId: string) {
   const owed = new Map<string, { teacher: string; items: string[] }>();
   for (const r of all) {
     const missing: string[] = [];
-    if (r.marksState !== "complete") missing.push(`${r.learners - r.marks} mark(s) missing`);
+    if (r.marksState !== "complete") missing.push(`${r.marksExpected - r.marks} ${r.papers > 1 ? "paper " : ""}mark(s) missing`);
     if (r.actState === "none" && r.chapters === 0) missing.push("no activity chapters");
     else if (r.actState === "partial" || r.actState === "none") missing.push(`${r.actExpected - r.actDone} activity score(s) missing`);
     if (!missing.length) continue;

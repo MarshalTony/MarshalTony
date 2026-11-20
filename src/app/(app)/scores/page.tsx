@@ -95,7 +95,7 @@ export default async function ScoresPage({ searchParams }: { searchParams: Promi
     body = <Alert tone="warn">There is no examination for {stream.schoolClass.name} in {term.name} {year.name} yet. The Director of Studies creates it under Examinations (and can add this class to an existing exam with Edit).</Alert>;
   } else {
     const self = `/scores?type=eot&yearId=${year.id}&termId=${term.id}${staff ? `&staffId=${staff.id}` : ""}&streamId=${stream.id}&subjectId=${subject.id}&examId=${exam.id}`;
-    body = <MarksSheet user={user} examId={exam.id} streamId={stream.id} subjectId={subject.id} correctionRequested={sp(q, "correct") === "1"} selfHref={self} />;
+    body = <MarksSheet user={user} examId={exam.id} streamId={stream.id} subjectId={subject.id} paper={Number(sp(q, "paper")) || 1} correctionRequested={sp(q, "correct") === "1"} selfHref={self} />;
   }
 
   return (

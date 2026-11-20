@@ -29,6 +29,7 @@ export default async function SubjectsPage() {
         <SelectField label="Category" name="category" defaultValue={s?.category} required options={CATS} />
         <TextField label="Weight" name="weight" type="number" step="0.01" defaultValue={s ? Number(s.weight).toString() : "1"} hint="Used in weighted averages and points" required />
         <SelectField label="Department" name="departmentId" defaultValue={s?.departmentId ?? ""} placeholder="—" options={depts.map((d) => ({ value: d.id, label: d.name }))} />
+        <TextField label="Number of papers" name="paperCount" type="number" min={1} max={4} defaultValue={String(s?.paperCount ?? 1)} required hint="A-Level: marks are entered per paper (P/1, P/2) and the report shows each paper" />
       </Grid>
       <CheckboxField name="hasPractical" label="Has a practical paper" defaultChecked={s?.hasPractical} />
       <CheckboxField name="isActive" label="Active" defaultChecked={s?.isActive ?? true} />
@@ -63,7 +64,7 @@ export default async function SubjectsPage() {
               {subjects.map((s) => (
                 <TR key={s.id} className={s.isActive ? "" : "opacity-50"}>
                   <TD className="font-mono text-xs">{s.code}</TD>
-                  <TD>{s.name} {s.hasPractical && <Badge>practical</Badge>}</TD>
+                  <TD>{s.name} {s.hasPractical && <Badge>practical</Badge>} {s.paperCount > 1 && <Badge color="blue">{s.paperCount} papers</Badge>}</TD>
                   <TD>{s.level === "O_LEVEL" ? "O" : "A"}</TD>
                   <TD className="text-xs">{s.category.toLowerCase()}</TD>
                   <TD>{Number(s.weight)}</TD>

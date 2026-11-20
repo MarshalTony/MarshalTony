@@ -186,10 +186,10 @@ function entriesFrom(fd: FormData) {
 }
 
 export const saveMarksAction = action(
-  { permission: ["marks.enter", "marks.enter.any", "marks.approve"], schema: z.object({ examId: zs.id(), streamId: zs.id(), subjectId: zs.id(), correction: zs.bool(), reason: zs.optStr(300) }) },
-  async ({ examId, streamId, subjectId, correction, reason }, user, fd) => {
+  { permission: ["marks.enter", "marks.enter.any", "marks.approve"], schema: z.object({ examId: zs.id(), streamId: zs.id(), subjectId: zs.id(), paper: zs.optInt(), correction: zs.bool(), reason: zs.optStr(300) }) },
+  async ({ examId, streamId, subjectId, paper, correction, reason }, user, fd) => {
     const { entries, clear } = entriesFrom(fd);
-    const n = await prisma.$transaction((tx) => saveMarks(tx, { examId, streamId, subjectId, entries, clear, user, correction, reason: reason ?? undefined }), { timeout: 60_000 });
+    const n = await prisma.$transaction((tx) => saveMarks(tx, { examId, streamId, subjectId, paper: paper ?? 1, entries, clear, user, correction, reason: reason ?? undefined }), { timeout: 60_000 });
     return { ok: true, message: n ? `${n} mark(s) saved${correction ? " as corrections" : ""}.` : "No changes to save." };
   },
 );
@@ -199,9 +199,10 @@ export const submitMarks = action(
   async ({ examId, streamId, subjectId }, user) => {
     const exam = await prisma.exam.findUniqueOrThrow({ where: { id: examId }, include: { term: true } });
     if (!(await canEnterMarks(prisma, user, streamId, subjectId, exam.term.academicYearId))) throw new UserError("You are not allocated to this subject and stream.");
-    const expected = await prisma.student.count({ where: { streamId, status: "ACTIVE", subjects: { some: { subjectId, academicYearId: exam.term.academicYearId } } } });
-    const entered = await prisma.mark.count({ where: { examId, subjectId, student: { streamId, status: "ACTIVE" } } });
-    if (entered < expected) throw new UserError(`${expected - entered} student(s) have no mark. Enter a mark, ABS or EX for every student before submitting.`);
+    const { paperCount } = await prisma.subject.findUniqueOrThrow({ where: { id: subjectId }, select: { paperCount: true } });
+    const expected = paperCount * await prisma.student.count({ where: { streamId, status: "ACTIVE", subjects: { some: { subjectId, academicYearId: exam.term.academicYearId } } } });
+    const entered = await prisma.mark.count({ where: { examId, subjectId, paper: { lte: paperCount }, student: { streamId, status: "ACTIVE" } } });
+    if (entered < expected) throw new UserError(`${expected - entered} paper mark(s) are missing. Enter a mark, ABS or EX for every student before submitting.`);
     const sub = await prisma.markSubmission.upsert({
       where: { examId_streamId_subjectId: { examId, streamId, subjectId } },
       update: { status: "SUBMITTED", submittedById: user.id, submittedAt: new Date(), reviewNote: null },

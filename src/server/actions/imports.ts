@@ -9,7 +9,7 @@ import { IMPORT_KINDS, columnsOf, type Ctx } from "../imports/kinds";
 import { fileFrom } from "../storage";
 
 export const uploadImport = action(
-  { permission: null, schema: z.object({ kind: z.string(), examId: zs.optId(), streamId: zs.optId(), subjectId: zs.optId(), termId: zs.optId() }) },
+  { permission: null, schema: z.object({ kind: z.string(), examId: zs.optId(), streamId: zs.optId(), subjectId: zs.optId(), termId: zs.optId(), paper: zs.optId() }) },
   async ({ kind, ...ctxRaw }, user, fd) => {
     const def = IMPORT_KINDS[kind];
     if (!def) throw new UserError("Unknown import type.");

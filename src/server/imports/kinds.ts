@@ -340,12 +340,14 @@ const attendance: ImportKind = {
 };
 
 // ---------------------------------------------------------------- Marks
+const paperOf = (ctx: Ctx) => Math.max(1, Math.trunc(Number(ctx.paper)) || 1);
 const marks: ImportKind = {
   title: "Examination marks",
   permission: ["marks.enter", "marks.enter.any"],
-  contextKeys: ["examId", "streamId", "subjectId"],
+  contextKeys: ["examId", "streamId", "subjectId", "paper"],
   instructions: [
     "Download this template from the marks entry page: it is pre-filled with the students in the stream who take the subject.",
+    "Subjects with two papers (A-Level P/1, P/2) have one template per paper — download it from that paper's tab.",
     "Enter a number for the mark, ABS for absent, EX for exempted. Leave blank if the mark is not yet available.",
     "Do not change the Admission No column.",
   ],
@@ -359,7 +361,7 @@ const marks: ImportKind = {
     const list = await prisma.student.findMany({
       where: { streamId: ctx.streamId, status: "ACTIVE", subjects: { some: { subjectId: ctx.subjectId, academicYearId: exam.term.academicYearId } } },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-      include: { marks: { where: { examId: ctx.examId, subjectId: ctx.subjectId } } },
+      include: { marks: { where: { examId: ctx.examId, subjectId: ctx.subjectId, paper: paperOf(ctx) } } },
     });
     return list.map((s) => {
       const m = s.marks[0];
@@ -393,7 +395,7 @@ const marks: ImportKind = {
   },
   async commit(tx, rows, ctx, user) {
     const entries: MarkEntry[] = rows.filter((r) => !r.data.skip).map((r) => ({ studentId: r.data.studentId, score: r.data.score, status: r.data.status }));
-    const n = await saveMarks(tx, { examId: ctx.examId, streamId: ctx.streamId, subjectId: ctx.subjectId, entries, clear: [], user });
+    const n = await saveMarks(tx, { examId: ctx.examId, streamId: ctx.streamId, subjectId: ctx.subjectId, paper: paperOf(ctx), entries, clear: [], user });
     return `${entries.length} marks imported (${n} changed).`;
   },
 };

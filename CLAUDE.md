@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-20 — A-Level subject rule (3 principals + GP + Sub-Maths or Sub-ICT)._
+_Last updated: 2026-11-20 — A-Level paper marks (P/1, P/2) and the school's A-Level report card._
 
 ## 1. What this is
 
@@ -61,7 +61,7 @@ See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/DEPLOYMENT.md`, `docs/API.
 - Dev server: `npx next dev -p 3000`. Demo data: `npm run db:demo` (demo users and their password are in `prisma/demo-data.ts`;
   `teacher1` = Okello Peter, class teacher of S1 A, English everywhere; also `bursar`, `librarian`).
   Local admin password can be reset with a bcrypt update in a scratch script (never commit it).
-- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (97 tests at last count:
+- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (107 tests at last count:
   unit in `tests/unit`, DB integration in `tests/integration`). Acceptance suite: `npm run test:acceptance`.
 - Browser verification with Playwright (pre-installed; `require('playwright')`), scripts kept in the scratchpad
   (they are not in the repo). Log in, drive the page, save PDFs and render them with `pdftoppm`/`pdftotext` to check.
@@ -78,7 +78,8 @@ Runtime logs are kept 1 hour. Env vars on Vercel: `DATABASE_URL` (transaction po
 
 Migrations (all additive after init): `init`, `financial_immutability`, `subject_result_status`, `stored_file_data`,
 `continuous_assessment` (LearningActivity, ActivityScore, CompetencyRemark, SchoolPay code, altEmail, band descriptions),
-`leaving_clearance` (StudentClearance, LeavingRecord), `comment_bank` (CommentTemplate), `subject_report_order` (Subject.reportOrder, default 100).
+`leaving_clearance` (StudentClearance, LeavingRecord), `comment_bank` (CommentTemplate), `subject_report_order` (Subject.reportOrder, default 100),
+`subject_papers` (Subject.paperCount — sets A-Level subjects except GP/S-MTC to 2; Mark.paper + new unique key).
 
 ## 6. Decisions agreed with the school (do not undo without asking)
 
@@ -86,11 +87,17 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
   page 1 Activities of Integration (chapters scored **out of 3**, average, identifier 3/2/1, descriptor, remark, teacher);
   page 2 "Summary of <exam type> Performance": **out of 20** (= avg ÷ 3 × 20) + **the exam out of 80** (column "BOT/80", "EOT/80"…; papers out of 100 are scaled) = total, grade **A 90–100, B 80–89, C 60–79, D 50–59, E 0–49**
   with the long descriptors, class-teacher & head-teacher comments, term dates, red "invalid without school stamp".
-  Switchable in Settings → School profile (`reportTemplate.cbcOLevel`). Only A-Level (S5–S6) uses the standard one-page card.
+  Switchable in Settings → School profile (`reportTemplate.cbcOLevel`). A-Level (S5–S6) uses the school's A-Level paper format (below).
 - **S5–S6 subjects: at most 3 principal subjects + 2 subsidiaries = General Paper + EITHER Sub-Maths OR Sub-ICT** (never both).
   Rule `src/lib/alevel.ts` (`aLevelProblems`), enforced in combinations (must be complete: 3P + GP + 1), profile subjects, bulk edit;
   violations listed on Students → Data check.
 - **S5–S6 (A-Level) have no Activities of Integration**; their papers are out of 100. New exams ask for an O-Level max (80 for EOT) and an A-Level max (100).
+- **A-Level papers:** every A-Level subject has **2 papers** (P/1, P/2; Sub-ICT S/1, S/2) except **General Paper and Sub-Maths (1 paper, S/1)** — `Subject.paperCount`, `Mark.paper` (unique exam×student×subject×paper). Marks entered per paper (tabs on the marks sheet, `?paper=`; Excel template per paper).
+  Results combine papers (mean; missing/ABS paper = 0 once another has a mark; `combinePapers`) and A-Level subject grade/points come from paper grades (`src/lib/uace.ts`, engine `override`).
+- **S5–S6 report card = the school's A-Level format** (`src/server/reports/report-card-alevel.tsx`, from the owner's schoolmonitorug sample): per paper a column for every exam of the term up to the printed one (B.O.T, E.O.T…),
+  AVERAGE (missing exam = 0, rounded half up), PAPER GRADE D1–F9 (bands: scale appliesTo `PAPER`), GRADE A–F, COMMENT (paper band remark), INITIAL (subject teacher), TOTAL POINTS, grading scale, points key, comments, dates, crest watermark.
+  Rules adopted (DOS to confirm): principal = worst paper (≤D2 A6, C3 B5, C4 C4, C5 D3, C6 E2, P7–P8 O1, F9 F0); subsidiary O1 if every paper ≤C6 else F0.
+  The card grades the **term average**; exam results/rankings grade that exam alone. Switch `reportTemplate.aLevelPapers` (default on).
 - **No DOS approval of marks** (Settings switch `reportTemplate.requireMarksApproval`, default off): saved marks count at once.
 - **Examinations are always open for marks entry** — no open/close; only Publish/Unpublish (visibility to parents/students). New exams start `OPEN`.
 - Printing report cards refreshes results automatically when marks changed (`ensureFreshResults`).
@@ -114,7 +121,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
   winner, best/weakest subject, best stream, best 10/last 10 class, best 10/last 3 per stream, subject×stream with teachers,
   teacher averages, improvement vs comparison exam, at-risk), **Readiness** `exams/[id]/readiness` (marks / activity scores / comments
   progress per class × stream × subject, teachers to follow up; logic `src/server/exams/progress.ts` + `src/lib/exams/progress.ts`), comments page `exams/[id]/comments` (fill from bank, ↻),
-  **Report Cards** (`/report-cards`), UNEB, attendance, assignments.
+  **Report Cards** (`/report-cards`; S1–S4 CBC card, S5–S6 A-Level paper card `report-card-alevel.tsx`), UNEB, attendance, assignments.
 - **Staff logins** (`staff/logins`, `users.manage`): per-staff create login with admin-chosen username + password and
   "must change at first sign-in" (default on), bulk create for everyone without one (first.last usernames, one starting password),
   set password / disable. Admin-typed passwords also in Settings → Users (create + Set password). Helpers `src/server/users.ts`.
@@ -138,9 +145,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 - **Agreed order (owner said "we go as your order"):** ✅ report readiness tracker → ✅ activity scores from Excel → ✅ subject order on report cards → combined BOT+MOT+EOT card (**only if the owner wants it — ask**) → students: ✅ results history on profile → ✅ data clean-up check → ✅ enrolment statistics (EMIS) → **next: student documents** (needs a migration for document records; files via `saveUpload`).
 
 - Termly report combining BOT + MOT + EOT on one card (if wanted).
-- **A-Level report in the school's format** (owner uploaded a schoolmonitorug sample, 2026-11-20): per subject its papers (P/1, P/2, S/1),
-  BOT and EOT columns, average, paper grade D1–F9, subject grade A–F (UNEB rules), comment, teacher initials, total points, crest watermark.
-  Needs paper-level marks (not modelled yet) — **ask the owner before building**.
+- ✅ A-Level report in the school's format (built 2026-11-20). Open: DOS to confirm the UACE grading rules; Sub-ICT assumed 2 papers.
 - Confirm admission-number / "Reg Number" format on the card.
 - Other modules the owner may pick next: fees, attendance, parent portal, SMS (needs Africa's Talking keys), enrolment statistics (EMIS),
   student documents, siblings/family view, data clean-up assistant.

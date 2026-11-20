@@ -5,6 +5,7 @@ import { Document, Page, Text, View, Image, Footer, Letterhead, loadBranding, re
 import { photoBuffers } from "./photos";
 import { loadRule, loadScales } from "../exams/results";
 import { buildCbcPages } from "./report-card-cbc";
+import { buildALevelPages } from "./report-card-alevel";
 import { fmtDate, ordinal, studentName } from "@/lib/utils";
 
 export async function renderReportCards(examId: string, studentIds: string[], generatedBy: string) {
@@ -34,12 +35,18 @@ export async function renderReportCards(examId: string, studentIds: string[], ge
     ? results.filter((r) => r.student.schoolClass.level === "O_LEVEL").map((r) => r.studentId)
     : [];
   const cbcPages = school && cbcIds.length ? await buildCbcPages({ exam, b, school }, cbcIds) : new Map<string, React.ReactElement>();
+  // S5–S6 reports use the school's A-Level format: papers P/1, P/2 with the term's exams, paper grades and points.
+  const aIds = tpl.aLevelPapers !== false && !exam.isComposite
+    ? results.filter((r) => r.student.schoolClass.level === "A_LEVEL").map((r) => r.studentId)
+    : [];
+  const aPages = school && aIds.length ? await buildALevelPages({ exam, b, school, photos }, aIds) : new Map<string, React.ReactElement>();
 
   const cell = (w: string, extra: object = {}) => ({ width: w, padding: 3, fontSize: 8, borderBottomWidth: 0.5, borderBottomColor: C.line, ...extra });
   const doc = (
     <Document title={`Report cards — ${exam.name}`} author={b.name}>
       {results.map((r) => {
         if (cbcPages.has(r.studentId)) return cbcPages.get(r.studentId)!;
+        if (aPages.has(r.studentId)) return aPages.get(r.studentId)!;
         const st = r.student;
         const subs = subjectResults.filter((x) => x.studentId === r.studentId);
         const rule = rules[st.schoolClass.level];

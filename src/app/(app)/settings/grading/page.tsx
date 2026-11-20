@@ -6,7 +6,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle } from "@/components/ui
 import { Table, THead, TH, TR, TD } from "@/components/data-table";
 
 const levelOpts = [{ value: "O_LEVEL", label: "O-Level" }, { value: "A_LEVEL", label: "A-Level" }];
-const appliesOpts = [{ value: "ALL", label: "All subjects" }, { value: "PRINCIPAL", label: "Principal subjects" }, { value: "SUBSIDIARY", label: "Subsidiary subjects" }, { value: "ACTIVITY", label: "Activities of Integration (scores out of 3)" }];
+const appliesOpts = [{ value: "ALL", label: "All subjects" }, { value: "PRINCIPAL", label: "Principal subjects" }, { value: "SUBSIDIARY", label: "Subsidiary subjects" }, { value: "ACTIVITY", label: "Activities of Integration (scores out of 3)" }, { value: "PAPER", label: "A-Level paper grades (D1–F9; points = grade number)" }];
 
 export default async function GradingSettings() {
   await requirePage("exams.manage");

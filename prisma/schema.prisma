@@ -296,6 +296,8 @@ model Subject {
   isActive   Boolean         @default(true)
   // Position on report cards and broadsheets (lower first; equal → alphabetical). Set in Classes & Subjects → Report order.
   reportOrder Int            @default(100)
+  // Number of examination papers (A-Level principals: 2 → P/1, P/2; General Paper / Sub-Maths: 1 → S/1). Marks are entered per paper.
+  paperCount Int             @default(1)
   departmentId String?
   department Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
@@ -818,12 +820,14 @@ model Mark {
   student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
   subjectId  String
   subject    Subject    @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  // Paper number (1 for single-paper subjects; A-Level principals have papers 1 and 2)
+  paper      Int        @default(1)
   score      Decimal?   @db.Decimal(6, 2)
   status     MarkStatus @default(PRESENT)
   enteredById String?
   updatedAt  DateTime   @updatedAt
 
-  @@unique([examId, studentId, subjectId])
+  @@unique([examId, studentId, subjectId, paper])
   @@index([examId, subjectId])
 }
 

@@ -33,9 +33,13 @@ export function parseMarkInput(raw: string): { score: number | null; status: Mar
  */
 export async function saveMarks(
   tx: Tx,
-  args: { examId: string; streamId: string; subjectId: string; entries: MarkEntry[]; clear: string[]; user: CurrentUser; correction?: boolean; reason?: string },
+  args: { examId: string; streamId: string; subjectId: string; paper?: number; entries: MarkEntry[]; clear: string[]; user: CurrentUser; correction?: boolean; reason?: string },
 ) {
   const { examId, streamId, subjectId, entries, clear, user } = args;
+  const paper = args.paper ?? 1;
+  const subject = await tx.subject.findUniqueOrThrow({ where: { id: subjectId }, select: { paperCount: true, name: true } });
+  if (!Number.isInteger(paper) || paper < 1 || paper > subject.paperCount)
+    throw new UserError(`${subject.name} has ${subject.paperCount} paper${subject.paperCount === 1 ? "" : "s"}; paper ${paper} does not exist.`);
   const exam = await tx.exam.findUniqueOrThrow({ where: { id: examId }, include: { term: true } });
   if (exam.isComposite) throw new UserError("Marks for a combined exam are calculated from its component exams.");
   // Examinations stay open for marks entry the whole time (no open/close step).
@@ -69,7 +73,7 @@ export async function saveMarks(
   const bad = [...entries.map((e) => e.studentId), ...clear].filter((id) => !allowed.has(id));
   if (bad.length) throw new UserError(`${bad.length} student(s) are not in this stream or do not take this subject.`);
 
-  const existing = new Map((await tx.mark.findMany({ where: { examId, subjectId, studentId: { in: [...entries.map((e) => e.studentId), ...clear] } } })).map((m) => [m.studentId, m]));
+  const existing = new Map((await tx.mark.findMany({ where: { examId, subjectId, paper, studentId: { in: [...entries.map((e) => e.studentId), ...clear] } } })).map((m) => [m.studentId, m]));
   const changes: { studentId: string; from: string; to: string }[] = [];
   const fmt = (m?: { score: unknown; status: string } | null) => (!m ? "—" : m.status === "PRESENT" ? String(Number(m.score)) : m.status);
   for (const e of entries) {
@@ -78,9 +82,9 @@ export async function saveMarks(
     const after = fmt({ score: e.score, status: e.status });
     if (before === after) continue;
     await tx.mark.upsert({
-      where: { examId_studentId_subjectId: { examId, studentId: e.studentId, subjectId } },
+      where: { examId_studentId_subjectId_paper: { examId, studentId: e.studentId, subjectId, paper } },
       update: { score: e.score, status: e.status, enteredById: user.id },
-      create: { examId, studentId: e.studentId, subjectId, score: e.score, status: e.status, enteredById: user.id },
+      create: { examId, studentId: e.studentId, subjectId, paper, score: e.score, status: e.status, enteredById: user.id },
     });
     changes.push({ studentId: e.studentId, from: before, to: after });
   }
@@ -96,7 +100,7 @@ export async function saveMarks(
     await tx.auditLog.create({
       data: {
         userId: user.id, action: args.correction ? "MARKS_CORRECTED" : "MARKS_SAVED", entity: "MarkSubmission", entityId: `${examId}:${streamId}:${subjectId}`,
-        details: { count: changes.length, reason: args.reason ?? null, changes: changes.slice(0, 200) },
+        details: { count: changes.length, ...(subject.paperCount > 1 ? { paper } : {}), reason: args.reason ?? null, changes: changes.slice(0, 200) },
       },
     });
   }

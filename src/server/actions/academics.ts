@@ -14,6 +14,7 @@ export const saveSubject = action(
       id: zs.optId(), code: z.string().trim().toUpperCase().min(1).max(12), name: zs.str(80), shortName: zs.optStr(20),
       level: z.enum(["O_LEVEL", "A_LEVEL"]), category: z.enum(["COMPULSORY", "ELECTIVE", "PRINCIPAL", "SUBSIDIARY"]),
       weight: z.coerce.number().min(0).max(10), hasPractical: zs.bool(), isActive: zs.bool(), departmentId: zs.optId(),
+      paperCount: z.coerce.number().int().min(1, "At least 1 paper").max(4, "At most 4 papers").default(1),
     }),
   },
   async ({ id, ...data }, user) => {
