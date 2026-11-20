@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Download } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { syncExamSubjects } from "@/server/exams/exam-subjects";
 import { can, type CurrentUser } from "@/server/auth";
 import { canEnterMarks } from "@/server/exams/marks";
 import { marksApprovalRequired } from "@/server/exams/approval-setting";
@@ -31,8 +32,10 @@ export async function MarksSheet({
   // Subjects with several papers (A-Level principals: P/1, P/2) — marks are entered one paper at a time.
   const papers = subject.paperCount;
   const paper = paperRequested && paperRequested >= 1 && paperRequested <= papers ? paperRequested : 1;
+  // Students and subjects registered after the exam was created are added to it automatically.
+  if (!exam.isComposite && (await prisma.examClass.count({ where: { examId, classId: stream.classId } }))) await syncExamSubjects(examId);
   const es = await prisma.examSubject.findUnique({ where: { examId_classId_subjectId: { examId, classId: stream.classId, subjectId } } });
-  if (!es) return <Alert tone="error">{subject.name} is not part of {exam.name} for {stream.schoolClass.name}. Ask the Director of Studies to add it.</Alert>;
+  if (!es) return <Alert tone="error">{subject.name} is not part of {exam.name} for {stream.schoolClass.name} because no active student in {stream.schoolClass.name} takes {subject.name} this year. Give the students the subject (student profile or Students → Bulk edit) and it is added to the exam automatically{stream.schoolClass.level === "A_LEVEL" ? " — for S5–S6 set their combination" : ""}.</Alert>;
   const allowed = await canEnterMarks(prisma, user, streamId, subjectId, exam.term.academicYearId);
   const approver = can(user, "marks.approve");
   if (!allowed && !approver) return <Alert tone="error">You are not allocated to teach {subject.name} in {stream.schoolClass.code} {stream.name}.</Alert>;

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BarChart3, FileText, MessageSquare } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { syncExamSubjects } from "@/server/exams/exam-subjects";
 import { requirePage, can } from "@/server/auth";
 import {
   approveAllSubmitted, generateResultsAction, notifyResults, reviewMarks, saveExamSubjects, setExamStatus,
@@ -17,6 +18,7 @@ import { ExamEditActions } from "@/components/exams/exam-edit-actions";
 export default async function ExamDetail({ params }: { params: Promise<{ id: string }> }) {
   const user = await requirePage("exams.manage", "marks.enter", "marks.approve", "results.view");
   const { id } = await params;
+  await syncExamSubjects(id);
   const exam = await prisma.exam.findUnique({
     where: { id },
     include: {

@@ -7,6 +7,7 @@ import {
 } from "@/lib/exams/engine";
 import { DEFAULT_PAPER_BANDS, gradeSubject, type PaperBand } from "@/lib/uace";
 import { UserError } from "../action";
+import { syncExamSubjects } from "./exam-subjects";
 
 export async function loadScales(level: Level): Promise<Scale[]> {
   const scales = await prisma.gradingScale.findMany({ where: { level, isDefault: true, appliesTo: { notIn: ["ACTIVITY", "PAPER"] } }, include: { bands: true } });
@@ -129,6 +130,7 @@ async function effectiveMarks(examId: string, includeUnapproved: boolean) {
 }
 
 export async function generateResults(examId: string, opts: { includeUnapproved?: boolean } = {}) {
+  await syncExamSubjects(examId); // students/subjects registered after the exam was created
   const exam = await prisma.exam.findUniqueOrThrow({ where: { id: examId }, include: { term: true, classes: { include: { schoolClass: true } }, subjects: { include: { subject: true } } } });
   if (!exam.classes.length) throw new UserError("Add classes to the exam first.");
   if (!exam.subjects.length) throw new UserError("Configure the exam subjects first.");

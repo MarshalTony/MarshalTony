@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
+import { syncExamSubjects } from "./exam-subjects";
 import { activityProgress, progressOf, type Progress } from "@/lib/exams/progress";
 
 export type SubjectRow = {
@@ -14,6 +15,7 @@ export type StreamComments = { streamId: string; learners: number; classTeacher:
  * the subject), and for S1–S4 the Activities of Integration (chapters × learners); per stream, comments written.
  */
 export async function loadProgress(examId: string) {
+  await syncExamSubjects(examId);
   const exam = await prisma.exam.findUniqueOrThrow({
     where: { id: examId },
     include: { term: { include: { academicYear: true } }, classes: { include: { schoolClass: { include: { streams: { where: { isActive: true }, orderBy: { name: "asc" }, include: { classTeacher: true } } } } } }, subjects: { include: { subject: true } } },
