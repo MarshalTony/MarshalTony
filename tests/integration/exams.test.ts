@@ -185,8 +185,11 @@ describe("marks without DOS approval (the default)", async () => {
     expect(await save(70)).toBe(1);
   });
 
-  it("closing the exam stops marks entry", async () => {
-    await prisma.exam.update({ where: { id: exam.id }, data: { status: "CLOSED" } });
-    await expect(save(71)).rejects.toThrow(/closed/);
+  it("keeps marks entry open whatever the exam status (no open/close step)", async () => {
+    for (const status of ["DRAFT", "CLOSED", "PUBLISHED"] as const) {
+      await prisma.exam.update({ where: { id: exam.id }, data: { status } });
+      expect(await save(71)).toBeGreaterThanOrEqual(0);
+    }
+    expect(Number((await prisma.mark.findFirstOrThrow({ where: { examId: exam.id } })).score)).toBe(71);
   });
 });

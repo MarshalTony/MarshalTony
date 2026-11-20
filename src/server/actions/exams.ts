@@ -14,12 +14,12 @@ export const createExam = action(
     revalidate: "/exams",
     schema: z.object({
       name: zs.str(120), examTypeId: zs.id(), termId: zs.id(), classIds: zs.ids(), startDate: zs.optDate(), endDate: zs.optDate(),
-      isComposite: zs.bool(), componentIds: zs.ids(), autoSubjects: zs.bool(), openNow: zs.bool(),
+      isComposite: zs.bool(), componentIds: zs.ids(), autoSubjects: zs.bool(),
       // O-Level end-of-term papers are usually out of 80 (activities add 20); A-Level has no activities, so out of 100.
       maxMarks: z.coerce.number().positive().max(1000).default(100), maxMarksA: z.coerce.number().positive().max(1000).default(100),
     }),
   },
-  async ({ classIds, componentIds, autoSubjects, maxMarks, maxMarksA, openNow, ...data }, user, fd) => {
+  async ({ classIds, componentIds, autoSubjects, maxMarks, maxMarksA, ...data }, user, fd) => {
     if (!classIds.length) throw new UserError("Choose at least one class.");
     const weights = componentIds.map((id) => Number(fd.get(`weight_${id}`) ?? 0));
     if (data.isComposite) {
@@ -41,14 +41,12 @@ export const createExam = action(
           if (subs.length) await tx.examSubject.createMany({ data: subs.map((s) => ({ examId: exam.id, classId, subjectId: s.subjectId, maxMarks: max })) });
         }
       }
-      // Open for marks entry straight away (no separate step for the DOS) when there are subjects to enter.
-      if (openNow && !data.isComposite && (await tx.examSubject.count({ where: { examId: exam.id } })) > 0) {
-        await tx.exam.update({ where: { id: exam.id }, data: { status: "OPEN" } });
-      }
+      // Examinations are open for marks entry from the start and stay open.
+      if (!data.isComposite) await tx.exam.update({ where: { id: exam.id }, data: { status: "OPEN" } });
       await audit(user.id, "CREATE", "Exam", exam.id, { name: data.name, classIds, componentIds, weights }, tx);
       return exam;
     });
-    return { ok: true, message: openNow && !data.isComposite ? "Examination created and open for marks entry." : "Examination created.", redirect: `/exams/${exam.id}` };
+    return { ok: true, message: data.isComposite ? "Examination created." : "Examination created — teachers can enter marks now.", redirect: `/exams/${exam.id}` };
   },
 );
 
@@ -56,11 +54,10 @@ export const setExamStatus = action(
   { permission: "exams.manage", revalidate: "/exams", schema: z.object({ examId: zs.id(), status: z.enum(["DRAFT", "OPEN", "CLOSED", "PUBLISHED"]) }) },
   async ({ examId, status }, user) => {
     const exam = await prisma.exam.findUniqueOrThrow({ where: { id: examId }, include: { _count: { select: { results: true, subjects: true } } } });
-    if (status === "OPEN" && exam._count.subjects === 0) throw new UserError("Configure subjects before opening marks entry.");
     if (status === "PUBLISHED" && exam._count.results === 0) throw new UserError("Generate results before publishing.");
     await prisma.exam.update({ where: { id: examId }, data: { status } });
     await audit(user.id, "SET_STATUS", "Exam", examId, { from: exam.status, to: status });
-    const label = { DRAFT: "returned to draft", OPEN: "opened for marks entry", CLOSED: "closed for marks entry", PUBLISHED: "published to parents and students" }[status];
+    const label = { DRAFT: "updated", OPEN: "unpublished (hidden from parents and students)", CLOSED: "updated", PUBLISHED: "published to parents and students" }[status];
     return { ok: true, message: `Examination ${label}.` };
   },
 );
@@ -201,7 +198,6 @@ export const submitMarks = action(
   { permission: ["marks.enter", "marks.enter.any"], schema: z.object({ examId: zs.id(), streamId: zs.id(), subjectId: zs.id() }) },
   async ({ examId, streamId, subjectId }, user) => {
     const exam = await prisma.exam.findUniqueOrThrow({ where: { id: examId }, include: { term: true } });
-    if (exam.status !== "OPEN") throw new UserError("Marks can only be submitted while the exam is open.");
     if (!(await canEnterMarks(prisma, user, streamId, subjectId, exam.term.academicYearId))) throw new UserError("You are not allocated to this subject and stream.");
     const expected = await prisma.student.count({ where: { streamId, status: "ACTIVE", subjects: { some: { subjectId, academicYearId: exam.term.academicYearId } } } });
     const entered = await prisma.mark.count({ where: { examId, subjectId, student: { streamId, status: "ACTIVE" } } });

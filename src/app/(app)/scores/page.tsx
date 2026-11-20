@@ -69,16 +69,15 @@ export default async function ScoresPage({ searchParams }: { searchParams: Promi
     { name: "termId", label: "Term", placeholder: "Select term", value: term.id, resets: ["examId"], options: terms.map((t) => ({ value: t.id, label: `${t.name}${t.isCurrent ? " (current)" : ""}` })) },
     { name: "yearId", label: "Year", placeholder: "Select year", value: year.id, resets: ["termId", "streamId", "subjectId", "examId"], options: years.map((y) => ({ value: y.id, label: `${y.name}${y.isCurrent ? " (current)" : ""}` })) },
   ];
-  // Exam scores: any (non-combined) examination of this term that includes the class — open ones first.
-  const STATUS_ORDER = { OPEN: 0, DRAFT: 1, CLOSED: 2, PUBLISHED: 3 } as const;
+  // Exam scores: any (non-combined) examination of this term that includes the class — the latest exam type first.
   const exams = type === "eot" && stream
     ? (await prisma.exam.findMany({ where: { termId: term.id, isComposite: false, classes: { some: { classId: stream.classId } } }, include: { examType: true }, orderBy: { createdAt: "desc" } }))
-        .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.examType.order - a.examType.order)
+        .sort((a, b) => b.examType.order - a.examType.order)
     : [];
   const exam = exams.find((e) => e.id === sp(q, "examId")) ?? exams[0];
   if (exams.length) fields.push({
     name: "examId", label: "Examination", placeholder: "Select examination", value: exam?.id,
-    options: exams.map((e) => ({ value: e.id, label: `${e.name} (${e.status === "OPEN" ? "open" : e.status === "DRAFT" ? "not opened yet" : e.status.toLowerCase()})` })),
+    options: exams.map((e) => ({ value: e.id, label: e.name })),
   });
 
   let body: React.ReactNode;

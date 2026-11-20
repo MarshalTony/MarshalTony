@@ -43,10 +43,10 @@ export async function MarksSheet({
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
   const locked = needsApproval && (sub?.status === "SUBMITTED" || sub?.status === "APPROVED");
-  const examOpen = exam.status === "OPEN";
-  const correction = approver && correctionRequested && (locked || exam.status === "CLOSED" || exam.status === "PUBLISHED");
+  // Exams are always open for marks entry; "correction" is only for sheets locked by DOS approval (when switched on).
+  const correction = approver && correctionRequested && locked;
   const entered = students.filter((s) => s.marks.length).length;
-  const editable = !exam.isComposite && ((examOpen && !locked && allowed) || correction);
+  const editable = !exam.isComposite && ((!locked && allowed) || correction);
   const rows = students.map((s) => {
     const m = s.marks[0];
     return { id: s.id, admissionNo: s.admissionNo, name: studentName(s), value: !m ? "" : m.status === "PRESENT" ? String(Number(m.score)) : m.status === "ABSENT" ? "ABS" : "EX" };
@@ -67,7 +67,6 @@ export async function MarksSheet({
         </div>
       ) : null}
       {needsApproval && sub?.status === "REJECTED" && <Alert tone="warn" className="mb-3">Returned for correction: {sub.reviewNote}</Alert>}
-      {!examOpen && !correction && <Alert className="mb-3">Marks entry is {exam.status === "DRAFT" ? "not open yet — the Director of Studies must open it" : "closed"} for this examination.</Alert>}
       {locked && !correction && <Alert className="mb-3">These marks are {sub!.status.toLowerCase()} and locked.{approver && <> <Link className="underline" href={`${exitHref}${sep}correct=1`}>Correct marks</Link></>}</Alert>}
       {correction && <Alert tone="warn" className="mb-3">Correction mode: every change is recorded with your reason. <Link className="underline" href={exitHref}>Exit</Link></Alert>}
       <div className="grid gap-5 lg:grid-cols-3">

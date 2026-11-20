@@ -38,9 +38,7 @@ export async function saveMarks(
   const { examId, streamId, subjectId, entries, clear, user } = args;
   const exam = await tx.exam.findUniqueOrThrow({ where: { id: examId }, include: { term: true } });
   if (exam.isComposite) throw new UserError("Marks for a combined exam are calculated from its component exams.");
-  if (exam.status === "CLOSED" || exam.status === "PUBLISHED") {
-    if (!args.correction) throw new UserError("This examination is closed for marks entry.");
-  } else if (exam.status === "DRAFT") throw new UserError("This examination has not been opened for marks entry yet.");
+  // Examinations stay open for marks entry the whole time (no open/close step).
 
   const stream = await tx.stream.findUniqueOrThrow({ where: { id: streamId } });
   const es = await tx.examSubject.findUnique({ where: { examId_classId_subjectId: { examId, classId: stream.classId, subjectId } } });

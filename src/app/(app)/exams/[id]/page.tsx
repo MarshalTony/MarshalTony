@@ -43,10 +43,11 @@ export default async function ExamDetail({ params }: { params: Promise<{ id: str
   const submitted = exam.submissions.filter((s) => s.status === "SUBMITTED").length;
   const approved = exam.submissions.filter((s) => s.status === "APPROVED").length;
   const next: Record<string, { to: string; label: string; variant: "default" | "success" | "outline" }[]> = {
-    DRAFT: [{ to: "OPEN", label: "Open for marks entry", variant: "default" }],
-    OPEN: [{ to: "CLOSED", label: "Close marks entry", variant: "outline" }, { to: "DRAFT", label: "Back to draft", variant: "outline" }],
-    CLOSED: [{ to: "PUBLISHED", label: "Publish results", variant: "success" }, { to: "OPEN", label: "Re-open marks entry", variant: "outline" }],
-    PUBLISHED: [{ to: "CLOSED", label: "Unpublish", variant: "outline" }],
+    // Marks entry is always open; the only status step is publishing results to parents and students.
+    DRAFT: [{ to: "PUBLISHED", label: "Publish results", variant: "success" }],
+    OPEN: [{ to: "PUBLISHED", label: "Publish results", variant: "success" }],
+    CLOSED: [{ to: "PUBLISHED", label: "Publish results", variant: "success" }],
+    PUBLISHED: [{ to: "OPEN", label: "Unpublish", variant: "outline" }],
   };
   return (
     <>
@@ -55,7 +56,7 @@ export default async function ExamDetail({ params }: { params: Promise<{ id: str
         description={`${exam.examType.name} · ${exam.term.academicYear.name} ${exam.term.name}${exam.startDate ? ` · ${fmtDate(exam.startDate)} – ${fmtDate(exam.endDate)}` : ""}`}
         actions={
           <>
-            <StatusBadge status={exam.status} />
+            {exam.status === "PUBLISHED" && <StatusBadge status="PUBLISHED" />}
             {manage && next[exam.status].map((n) => (
               <ConfirmAction key={n.to} action={setExamStatus} fields={{ examId: exam.id, status: n.to }} label={n.label} variant={n.variant} size="default"
                 confirm={n.to === "PUBLISHED" ? "Publish results? Parents and students will be able to see them and download report cards." : undefined} />

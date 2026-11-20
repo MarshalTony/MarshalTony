@@ -109,7 +109,7 @@ async function AcademicSection({ termId }: { termId?: string }) {
   const [subs, latest, open] = await Promise.all([
     prisma.markSubmission.groupBy({ by: ["status"], where: { exam: { termId } }, _count: true }),
     prisma.exam.findFirst({ where: { resultsGeneratedAt: { not: null } }, orderBy: { resultsGeneratedAt: "desc" } }),
-    prisma.exam.findMany({ where: { termId, status: "OPEN" }, select: { id: true, name: true } }),
+    prisma.exam.findMany({ where: { termId, isComposite: false }, select: { id: true, name: true } }),
   ]);
   const classAvg = latest ? await prisma.$queryRaw<{ code: string; avg: number }[]>`
     SELECT c.code, AVG(r.average)::float AS avg FROM "ExamResult" r JOIN "SchoolClass" c ON c.id = r."classId" WHERE r."examId" = ${latest.id} AND r."classPosition" IS NOT NULL GROUP BY c.code, c."order" ORDER BY c."order"` : [];
@@ -119,7 +119,7 @@ async function AcademicSection({ termId }: { termId?: string }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Exams open for marks" value={open.length} hint={open.map((o) => o.name).join(", ").slice(0, 60)} />
+        <StatCard label="Exams this term" value={open.length} hint={open.map((o) => o.name).join(", ").slice(0, 60)} />
         <StatCard label="Mark sheets in draft" value={c("DRAFT") + c("REJECTED")} hint={`${c("REJECTED")} returned`} />
         <StatCard label="Awaiting approval" value={c("SUBMITTED")} hint={<Link href="/exams" className="text-brand-700 underline">Review</Link>} />
         <StatCard label="Approved" value={c("APPROVED")} />
@@ -141,7 +141,7 @@ async function TeacherSection({ staffId, termId }: { staffId: string; termId?: s
     prisma.teacherAllocation.findMany({ where: { staffId, academicYear: { isCurrent: true } }, include: { subject: true, stream: { include: { schoolClass: true } } }, orderBy: [{ stream: { schoolClass: { order: "asc" } } }] }),
     prisma.stream.findMany({ where: { classTeacherId: staffId }, include: { schoolClass: true, _count: { select: { students: { where: { status: "ACTIVE" } } } } } }),
     termId ? prisma.timetableSlot.findMany({ where: { termId, staffId }, include: { subject: true, stream: { include: { schoolClass: true } } } }) : [],
-    prisma.exam.findMany({ where: { termId, status: "OPEN", isComposite: false }, include: { submissions: true } }),
+    prisma.exam.findMany({ where: { termId, isComposite: false }, include: { submissions: true } }),
   ]);
   return (
     <div className="grid gap-5 lg:grid-cols-2">
