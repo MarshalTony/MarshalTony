@@ -45,7 +45,7 @@ export const createExam = action(
 );
 
 export const setExamStatus = action(
-  { permission: "exams.manage", schema: z.object({ examId: zs.id(), status: z.enum(["DRAFT", "OPEN", "CLOSED", "PUBLISHED"]) }) },
+  { permission: "exams.manage", revalidate: "/exams", schema: z.object({ examId: zs.id(), status: z.enum(["DRAFT", "OPEN", "CLOSED", "PUBLISHED"]) }) },
   async ({ examId, status }, user) => {
     const exam = await prisma.exam.findUniqueOrThrow({ where: { id: examId }, include: { _count: { select: { results: true, subjects: true } } } });
     if (status === "OPEN" && exam._count.subjects === 0) throw new UserError("Configure subjects before opening marks entry.");

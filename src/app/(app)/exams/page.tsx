@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
-import { createExam } from "@/server/actions/exams";
-import { CheckboxField, FormDialog, Grid, SelectField, TextField } from "@/components/forms";
+import { createExam, setExamStatus } from "@/server/actions/exams";
+import { Lock, LockOpen } from "lucide-react";
+import { CheckboxField, ConfirmAction, FormDialog, Grid, SelectField, TextField } from "@/components/forms";
 import { FilterBar } from "@/components/filters";
 import { Badge, Card, CardContent, CardHeader, CardTitle, PageHeader, StatusBadge } from "@/components/ui/card";
 import { Table, THead, TH, TR, TD, sp, type SP } from "@/components/data-table";
@@ -115,6 +116,14 @@ export default async function ExamsPage({ searchParams }: { searchParams: Promis
               {can(user, "exams.manage") && (
                 <TD className="whitespace-nowrap text-right">
                   <span className="inline-flex gap-1">
+                    {!e.isComposite && e.status === "OPEN" && (
+                      <ConfirmAction action={setExamStatus} fields={{ examId: e.id, status: "CLOSED" }} label="Close" icon={<Lock className="h-3.5 w-3.5" />}
+                        confirm={`Close "${e.name}" for marks entry? Teachers will no longer be able to enter or change marks.`} />
+                    )}
+                    {!e.isComposite && (e.status === "DRAFT" || e.status === "CLOSED") && (
+                      <ConfirmAction action={setExamStatus} fields={{ examId: e.id, status: "OPEN" }} label="Open" variant="success" icon={<LockOpen className="h-3.5 w-3.5" />}
+                        confirm={`Open "${e.name}" for marks entry? Teachers can then enter marks for their subjects.`} />
+                    )}
                     <ExamEditActions size="sm" exam={{ id: e.id, name: e.name, examTypeId: e.examTypeId, termId: e.termId, startDate: e.startDate, endDate: e.endDate, isComposite: e.isComposite, classIds: e.classes.map((c) => c.classId), marks: e._count.marks, results: e._count.results }}
                       examTypes={types.map((t) => ({ value: t.id, label: t.name }))} terms={terms.map((t) => ({ value: t.id, label: `${t.academicYear.name} ${t.name}` }))} classes={classes.map((c) => ({ value: c.id, label: c.code }))} />
                   </span>
