@@ -49,6 +49,7 @@ export default async function StudentProfile({ params }: { params: Promise<{ id:
         description={`${s.admissionNo} · ${s.schoolClass.name} ${s.stream.name} · ${s.residence === "DAY" ? "Day scholar" : "Boarder"}`}
         actions={
           <>
+            <Button asChild><a href={`/api/pdf/student-profile/${s.id}`} target="_blank"><Printer />Print full profile</a></Button>
             <Button asChild variant="outline"><a href={`/api/pdf/admission-form/${s.id}`} target="_blank"><Printer />Admission form</a></Button>
             <Button asChild variant="outline"><a href={`/api/pdf/id-cards?studentId=${s.id}`} target="_blank"><IdCard />ID card</a></Button>
             {can(user, "fees.view") && <Button asChild variant="outline"><Link href={`/fees/students/${s.id}`}><FileText />Fees account</Link></Button>}
