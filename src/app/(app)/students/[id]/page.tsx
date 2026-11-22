@@ -21,7 +21,9 @@ export default async function StudentProfile({ params }: { params: Promise<{ id:
   const s = await prisma.student.findUnique({
     where: { id },
     include: {
-      schoolClass: { include: { streams: { where: { isActive: true }, orderBy: { name: "asc" } } } }, stream: true, combination: true, user: true,
+      schoolClass: { include: { streams: { where: { isActive: true }, orderBy: { name: "asc" } } } }, stream: true, combination: true, user: true, house: true,
+      clubs: { include: { club: true }, orderBy: { club: { name: "asc" } } },
+      confirmations: { where: { term: { isCurrent: true } }, include: { term: true } },
       guardians: { include: { guardian: { include: { user: true } } } },
       enrollments: { include: { academicYear: true, schoolClass: true, stream: true }, orderBy: { academicYear: { startDate: "desc" } } },
     },
@@ -70,6 +72,7 @@ export default async function StudentProfile({ params }: { params: Promise<{ id:
               <DL cols={3} items={[
                 ["Gender", s.gender === "MALE" ? "Male" : "Female"], ["Date of birth", fmtDate(s.dateOfBirth)], ["Admitted", fmtDate(s.admissionDate)],
                 ["Class", `${s.schoolClass.name} ${s.stream.name}`], ["Combination", s.combination?.code ?? "—"], ["Residence", s.residence === "DAY" ? "Day" : "Boarding"],
+                ["Reported this term", s.confirmations[0] ? `Yes — confirmed ${fmtDate(s.confirmations[0].confirmedAt)}` : "Not confirmed yet"], ["House", s.house?.name ?? "—"], ["Clubs", s.clubs.length ? s.clubs.map((m) => `${m.club.name}${m.role ? ` (${m.role})` : ""}`).join(", ") : "—"],
                 ["Nationality", s.nationality], ["Religion", s.religion], ["Previous school", s.previousSchool],
                 ["UNEB index no.", s.unebIndexNo], ["LIN", s.linNumber], ["SchoolPay code", s.schoolPayCode], ["Home address", s.homeAddress],
                 ["Emergency contact", s.emergencyContactName ? `${s.emergencyContactName} (${s.emergencyContactPhone ?? "—"})` : "—"],

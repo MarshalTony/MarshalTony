@@ -13,9 +13,9 @@ type Cls = { id: string; name: string; level: string; streams: { id: string; nam
  * The stream list follows the chosen class, and the subject list follows the class level.
  */
 export function StudentFilters({
-  classes, subjects, combinations, missing, statuses,
+  classes, subjects, combinations, missing, statuses, houses = [], clubs = [],
 }: {
-  classes: Cls[]; subjects: (Opt & { level: string })[]; combinations: Opt[]; missing: readonly Opt[]; statuses: Opt[];
+  classes: Cls[]; subjects: (Opt & { level: string })[]; combinations: Opt[]; missing: readonly Opt[]; statuses: Opt[]; houses?: Opt[]; clubs?: Opt[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -45,7 +45,7 @@ export function StudentFilters({
 
   const level = cls?.level;
   const subjectOpts = subjects.filter((s) => !level || s.level === level);
-  const active = ["q", "classId", "streamId", "gender", "residence", "subjectId", "combinationId", "missing"].some((k) => get(k)) || (get("status") && get("status") !== "ACTIVE");
+  const active = ["q", "classId", "streamId", "gender", "residence", "subjectId", "combinationId", "house", "club", "reported", "missing"].some((k) => get(k)) || (get("status") && get("status") !== "ACTIVE");
 
   const sel = (name: string, label: string, options: Opt[], opts: { all?: string; onChange?: (v: string) => void; value?: string } = {}) => (
     <div className="space-y-1">
@@ -86,6 +86,9 @@ export function StudentFilters({
         {sel("residence", "Day / boarding", [{ value: "DAY", label: "Day" }, { value: "BOARDING", label: "Boarding" }], { all: "Both" })}
         {sel("subjectId", "Takes subject", subjectOpts, { all: "Any subject" })}
         {level !== "O_LEVEL" && combinations.length > 0 ? sel("combinationId", "Combination", combinations, { all: "Any" }) : null}
+        {houses.length > 0 ? sel("house", "House", [...houses, { value: "none", label: "No house" }], { all: "Any" }) : null}
+        {clubs.length > 0 ? sel("club", "Club", [...clubs, { value: "none", label: "In no club" }], { all: "Any" }) : null}
+        {sel("reported", "Reported this term", [{ value: "yes", label: "Yes (confirmed)" }, { value: "no", label: "No (not confirmed)" }], { all: "Any" })}
         {sel("missing", "Missing info", [...missing], { all: "—" })}
         {sel("status", "Status", statuses, { value: get("status") || "ACTIVE" })}
       </div>

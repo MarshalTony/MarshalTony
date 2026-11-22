@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
-import { Download, Upload, UserPlus, ArrowUpCircle, Table2, Camera, ClipboardCheck, ShieldCheck, BarChart3 } from "lucide-react";
+import { Download, Upload, UserPlus, ArrowUpCircle, Table2, Camera, ClipboardCheck, ShieldCheck, BarChart3, Flag, Zap, UserCheck } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
 import { classTree } from "@/server/queries/lookups";
@@ -24,7 +24,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const orderBy: Prisma.StudentOrderByWithRelationInput[] =
     sort.field === "class" ? [{ schoolClass: { order: sort.dir } }, { lastName: "asc" }] : [{ [sort.field]: sort.dir }];
   const where = studentWhere(params);
-  const [students, total, tree, subjects, combinations, bySex, byResidence] = await Promise.all([
+  const [students, total, tree, subjects, combinations, bySex, byResidence, houses, clubs] = await Promise.all([
     prisma.student.findMany({ where, orderBy, skip, take, include: { schoolClass: true, stream: true } }),
     prisma.student.count({ where }),
     classTree(),
@@ -32,6 +32,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
     prisma.subjectCombination.findMany({ where: { isActive: true }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
     prisma.student.groupBy({ by: ["gender"], where, _count: true }),
     prisma.student.groupBy({ by: ["residence"], where, _count: true }),
+    prisma.house.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.club.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
   const n = (rows: { _count: number }[], pick: (r: any) => boolean) => rows.find(pick)?._count ?? 0;
   const plural = (k: number, word: string) => `${k.toLocaleString()} ${word}${k === 1 ? "" : "s"}`;
@@ -55,8 +57,11 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             {manage && <Button asChild variant="outline"><Link href={`/students/bulk${sp(params, "classId") ? `?classId=${sp(params, "classId")}` : ""}`}><Table2 />Bulk edit</Link></Button>}
             <Button asChild variant="outline"><Link href="/students/statistics"><BarChart3 />Statistics</Link></Button>
             <Button asChild variant="outline"><Link href="/students/data-check"><ShieldCheck />Data check</Link></Button>
+            <Button asChild variant="outline"><Link href="/students/groups"><Flag />Clubs & Houses</Link></Button>
+            <Button asChild variant="outline"><Link href="/students/confirm"><UserCheck />Confirm students</Link></Button>
             <Button asChild variant="outline"><Link href={`/students/clearance${sp(params, "classId") ? `?classId=${sp(params, "classId")}` : ""}`}><ClipboardCheck />Clearance</Link></Button>
             {manage && <Button asChild variant="secondary"><Link href="/students/promote"><ArrowUpCircle />Promote</Link></Button>}
+            {manage && <Button asChild variant="outline"><Link href="/students/quick"><Zap />Quick registration</Link></Button>}
             {manage && <Button asChild><Link href="/students/new"><UserPlus />Register student</Link></Button>}
           </>
         }
@@ -67,6 +72,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         subjects={subjects.map((x) => ({ value: x.id, label: `${x.name} (${x.level === "O_LEVEL" ? "O" : "A"})`, level: x.level }))}
         combinations={combinations.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
         missing={MISSING_OPTIONS}
+        houses={houses.map((h) => ({ value: h.id, label: h.name }))}
+        clubs={clubs.map((c) => ({ value: c.id, label: c.name }))}
         statuses={["ACTIVE", "SUSPENDED", "WITHDRAWN", "TRANSFERRED", "GRADUATED", "EXPELLED", "ALL"].map((x) => ({ value: x, label: x === "ALL" ? "Any status" : x.charAt(0) + x.slice(1).toLowerCase() }))}
       />
       <p className="mb-2 text-sm text-slate-600">{summary.join("  ·  ")}</p>

@@ -7,31 +7,32 @@ import type { ActionResult } from "@/server/action";
 export type BulkRow = {
   id: string; admissionNo: string; lastName: string; firstName: string; otherNames: string;
   gender: "MALE" | "FEMALE"; streamId: string; residence: "DAY" | "BOARDING";
-  linNumber: string; schoolPayCode: string; combinationId: string; electives: string[];
+  linNumber: string; schoolPayCode: string; combinationId: string; houseId: string; electives: string[];
 };
 type Opt = { value: string; label: string };
 
 const same = (a: BulkRow, b: BulkRow) =>
   a.lastName === b.lastName && a.firstName === b.firstName && a.otherNames === b.otherNames && a.gender === b.gender &&
   a.streamId === b.streamId && a.residence === b.residence && a.linNumber === b.linNumber && a.schoolPayCode === b.schoolPayCode &&
-  a.combinationId === b.combinationId && [...a.electives].sort().join() === [...b.electives].sort().join();
+  a.combinationId === b.combinationId && a.houseId === b.houseId && [...a.electives].sort().join() === [...b.electives].sort().join();
 
 const cellInput = "h-7 rounded border border-slate-300 px-1.5 text-xs focus:border-brand-500 focus:outline-none";
 const cellSelect = "h-7 rounded border border-slate-300 bg-white px-1 text-xs";
 
 export function BulkStudentGrid({
-  action, classId, rows: initial, streams, electives, combinations,
+  action, classId, rows: initial, streams, electives, combinations, houses = [],
 }: {
   action: (p: ActionResult | null, fd: FormData) => Promise<ActionResult>;
   classId: string; rows: BulkRow[]; streams: Opt[];
   electives: { id: string; label: string; title: string }[];
   /** A-Level only: combination → its subject ids (ticks follow the combination when it is changed). */
   combinations: { value: string; label: string; subjectIds: string[] }[] | null;
+  houses?: Opt[];
 }) {
   const [rows, setRows] = React.useState(initial);
   const [base, setBase] = React.useState(initial);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
-  const [bulk, setBulk] = React.useState({ streamId: "", residence: "", gender: "" });
+  const [bulk, setBulk] = React.useState({ streamId: "", residence: "", gender: "", houseId: "" });
   React.useEffect(() => { setRows(initial); setBase(initial); setSelected(new Set()); }, [initial]);
 
   const baseBy = React.useMemo(() => new Map(base.map((r) => [r.id, r])), [base]);
@@ -50,6 +51,7 @@ export function BulkStudentGrid({
       ...(bulk.streamId ? { streamId: bulk.streamId } : {}),
       ...(bulk.residence ? { residence: bulk.residence as BulkRow["residence"] } : {}),
       ...(bulk.gender ? { gender: bulk.gender as BulkRow["gender"] } : {}),
+      ...(bulk.houseId ? { houseId: bulk.houseId === "none" ? "" : bulk.houseId } : {}),
     })));
   }
   /** Column header tick: everyone (or the ticked learners) take / drop the subject. */
@@ -76,7 +78,12 @@ export function BulkStudentGrid({
         <select aria-label="Set gender" className={cellSelect} value={bulk.gender} onChange={(e) => setBulk({ ...bulk, gender: e.target.value })}>
           <option value="">Gender…</option><option value="MALE">Male</option><option value="FEMALE">Female</option>
         </select>
-        <Button type="button" size="sm" variant="secondary" disabled={!selected.size || (!bulk.streamId && !bulk.residence && !bulk.gender)} onClick={applyBulk}>Apply to ticked</Button>
+        {houses.length > 0 && (
+          <select aria-label="Set house" className={cellSelect} value={bulk.houseId} onChange={(e) => setBulk({ ...bulk, houseId: e.target.value })}>
+            <option value="">House…</option>{houses.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}<option value="none">No house</option>
+          </select>
+        )}
+        <Button type="button" size="sm" variant="secondary" disabled={!selected.size || (!bulk.streamId && !bulk.residence && !bulk.gender && !bulk.houseId)} onClick={applyBulk}>Apply to ticked</Button>
         {electives.length > 0 && <span className="self-center text-xs text-slate-500">Click a subject heading to tick it for {selected.size ? "the ticked learners" : "everyone"} (click again to untick).</span>}
       </div>
 
@@ -104,6 +111,7 @@ export function BulkStudentGrid({
               <th className="p-1.5 text-left">Day/Brd</th>
               <th className="p-1.5 text-left">LIN</th>
               <th className="p-1.5 text-left">SchoolPay</th>
+              {houses.length > 0 && <th className="p-1.5 text-left">House</th>}
               {combinations && <th className="p-1.5 text-left">Combination</th>}
               {electives.map((e) => (
                 <th key={e.id} className="p-1 text-center normal-case" title={`${e.title} — click to tick/untick the column`}>
@@ -133,6 +141,13 @@ export function BulkStudentGrid({
                   </td>
                   <td className="p-1"><input aria-label="LIN" className={`${cellInput} w-36`} value={r.linNumber} onChange={(e) => set(r.id, { linNumber: e.target.value })} /></td>
                   <td className="p-1"><input aria-label="SchoolPay code" className={`${cellInput} w-24`} value={r.schoolPayCode} onChange={(e) => set(r.id, { schoolPayCode: e.target.value })} /></td>
+                  {houses.length > 0 && (
+                    <td className="p-1">
+                      <select aria-label="House" className={cellSelect} value={r.houseId} onChange={(e) => set(r.id, { houseId: e.target.value })}>
+                        <option value="">—</option>{houses.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
+                      </select>
+                    </td>
+                  )}
                   {combinations && (
                     <td className="p-1">
                       <select aria-label="Combination" className={cellSelect} value={r.combinationId} onChange={(e) => {

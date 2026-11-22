@@ -8,10 +8,10 @@ import type { ClassTree } from "@/server/queries/lookups";
 import { isoDate } from "@/lib/utils";
 
 export function StudentForm({
-  action, tree, combinations, student,
+  action, tree, combinations, student, houses = [],
 }: {
   action: (p: ActionResult | null, fd: FormData) => Promise<ActionResult>;
-  tree: ClassTree; combinations: { id: string; code: string; name: string }[]; student?: Student;
+  tree: ClassTree; combinations: { id: string; code: string; name: string }[]; student?: Student; houses?: { id: string; name: string }[];
 }) {
   const s = student;
   return (
@@ -45,6 +45,7 @@ export function StudentForm({
             <TextField label="UNEB index no." name="unebIndexNo" defaultValue={s?.unebIndexNo ?? ""} />
             <TextField label="Learner ID (LIN)" name="linNumber" defaultValue={s?.linNumber ?? ""} />
             <TextField label="SchoolPay code" name="schoolPayCode" defaultValue={s?.schoolPayCode ?? ""} />
+            {houses.length > 0 && <SelectField label="House" name="houseId" defaultValue={s?.houseId ?? ""} placeholder="— none —" options={houses.map((h) => ({ value: h.id, label: h.name }))} />}
           </Grid>
           {s && <p className="text-xs text-slate-500">Class and stream are changed from the student profile (Transfer stream) or through promotion, so the history is kept.</p>}
         </CardContent>

@@ -17,7 +17,7 @@ const studentFields = {
   classId: zs.id(), streamId: zs.id(), residence: z.enum(["DAY", "BOARDING"]), combinationId: zs.optId(),
   nationality: zs.optStr(40), religion: zs.optStr(40), homeAddress: zs.optStr(200), previousSchool: zs.optStr(120),
   medicalInfo: zs.optStr(1000), emergencyContactName: zs.optStr(100), emergencyContactPhone: zs.optPhone(),
-  unebIndexNo: zs.optStr(30), linNumber: zs.optStr(30), schoolPayCode: zs.optStr(30),
+  unebIndexNo: zs.optStr(30), linNumber: zs.optStr(30), schoolPayCode: zs.optStr(30), houseId: zs.optId(),
 };
 
 export const createStudent = action(
@@ -317,6 +317,7 @@ const bulkRow = z.object({
   linNumber: z.string().trim().max(30).optional().default(""),
   schoolPayCode: z.string().trim().max(30).optional().default(""),
   combinationId: z.string().max(40).optional().default(""),
+  houseId: z.string().max(40).optional().default(""),
   electives: z.array(z.string().max(40)).max(60),
 });
 
@@ -340,6 +341,7 @@ export const bulkUpdateStudents = action(
       const levelSubjects = await tx.subject.findMany({ where: { level: cls.level, category: { not: "COMPULSORY" } }, select: { id: true, code: true, name: true, category: true } });
       const electiveIds = new Set(levelSubjects.map((s) => s.id));
       const comboIds = new Set((await tx.subjectCombination.findMany({ select: { id: true } })).map((c) => c.id));
+      const houseIds = new Set((await tx.house.findMany({ select: { id: true } })).map((h) => h.id));
       const before = new Map((await tx.student.findMany({
         where: { id: { in: rows.map((r) => r.id) } },
         include: { subjects: { where: { academicYearId: year.id }, select: { subjectId: true } } },
@@ -354,6 +356,7 @@ export const bulkUpdateStudents = action(
         if (bad) throw new UserError(`${who}: one of the ticked subjects is not an elective for ${cls.name}.`);
         const combinationId = cls.level === "A_LEVEL" ? (r.combinationId || null) : b.combinationId;
         if (combinationId && combinationId !== b.combinationId && !comboIds.has(combinationId)) throw new UserError(`${who}: unknown combination.`);
+        if (r.houseId && !houseIds.has(r.houseId)) throw new UserError(`${who}: unknown house. Reload the page.`);
         if (cls.level === "A_LEVEL") {
           const problems = aLevelProblems(levelSubjects.filter((x) => r.electives.includes(x.id)));
           if (problems.length) throw new UserError(`${who}: ${problems.join("; ")} (S5–S6: max 3 principals + General Paper + Sub-Maths or Sub-ICT).`);
@@ -361,7 +364,7 @@ export const bulkUpdateStudents = action(
 
         const data = {
           lastName: r.lastName, firstName: r.firstName, otherNames: r.otherNames || null, gender: r.gender, residence: r.residence,
-          linNumber: r.linNumber || null, schoolPayCode: r.schoolPayCode || null, combinationId,
+          linNumber: r.linNumber || null, schoolPayCode: r.schoolPayCode || null, combinationId, houseId: r.houseId || null,
         };
         const changed = (Object.keys(data) as (keyof typeof data)[]).filter((k) => String(b[k] ?? "") !== String(data[k] ?? ""));
         const streamChanged = r.streamId !== b.streamId;

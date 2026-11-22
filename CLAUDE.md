@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-20 — A-Level paper marks (P/1, P/2) and the school's A-Level report card._
+_Last updated: 2026-11-22 — Clubs & Houses, Quick registration, Confirm students._
 
 ## 1. What this is
 
@@ -61,7 +61,7 @@ See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/DEPLOYMENT.md`, `docs/API.
 - Dev server: `npx next dev -p 3000`. Demo data: `npm run db:demo` (demo users and their password are in `prisma/demo-data.ts`;
   `teacher1` = Okello Peter, class teacher of S1 A, English everywhere; also `bursar`, `librarian`).
   Local admin password can be reset with a bcrypt update in a scratch script (never commit it).
-- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (108 tests at last count:
+- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (118 tests at last count:
   unit in `tests/unit`, DB integration in `tests/integration`). Acceptance suite: `npm run test:acceptance`.
 - Browser verification with Playwright (pre-installed; `require('playwright')`), scripts kept in the scratchpad
   (they are not in the repo). Log in, drive the page, save PDFs and render them with `pdftoppm`/`pdftotext` to check.
@@ -79,7 +79,8 @@ Runtime logs are kept 1 hour. Env vars on Vercel: `DATABASE_URL` (transaction po
 Migrations (all additive after init): `init`, `financial_immutability`, `subject_result_status`, `stored_file_data`,
 `continuous_assessment` (LearningActivity, ActivityScore, CompetencyRemark, SchoolPay code, altEmail, band descriptions),
 `leaving_clearance` (StudentClearance, LeavingRecord), `comment_bank` (CommentTemplate), `subject_report_order` (Subject.reportOrder, default 100),
-`subject_papers` (Subject.paperCount — sets A-Level subjects except GP/S-MTC to 2; Mark.paper + new unique key).
+`subject_papers` (Subject.paperCount — sets A-Level subjects except GP/S-MTC to 2; Mark.paper + new unique key),
+`clubs_houses_confirmation` (House, Club, ClubMember, StudentConfirmation; Student.houseId).
 
 ## 6. Decisions agreed with the school (do not undo without asking)
 
@@ -116,7 +117,10 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
   class board `students/clearance`, PDFs `api/pdf/leaving/[id]`: clearance form, leaving certificate/testimonial, transfer, recommendation),
   promotion, transfer stream, ID cards, admission form, imports, **Statistics** (`students/statistics` + `api/reports/enrolment`:
   by class/stream, age × class × sex (EMIS, age on 1 Jan), day/boarding, admissions, leavers; logic `src/server/enrolment.ts`), **Data check** (`students/data-check`: no subjects / no enrolment
-  with one-click fixes, A-Level without combination, likely duplicates, no parent, non-Ugandan phones, missing LIN/photo/DOB/SchoolPay; helpers `src/lib/data-check.ts`).
+  with one-click fixes, A-Level without combination, likely duplicates, no parent, non-Ugandan phones, missing LIN/photo/DOB/SchoolPay; helpers `src/lib/data-check.ts`),
+  **Clubs & Houses** (`students/groups`, detail `students/groups/[kind]/[id]`, actions `server/actions/groups.ts`, balanced share-out `src/lib/houses.ts`, member list `api/reports/group`; house on forms/Bulk edit/profile/export; filters `house`, `club` incl. `none`),
+  **Quick registration** (`students/quick`, grid `components/quick-register-grid.tsx` with Excel paste, rules `src/lib/quick-register.ts`, action `server/actions/quick-register.ts`; all-or-nothing, duplicate-name guard),
+  **Confirm students** (`students/confirm`, per term `StudentConfirmation`, actions `server/actions/confirmation.ts`; filter `reported=yes|no` = current term; profile line). Shared tick list `components/member-picker.tsx`.
 - **Academics:** subjects & combinations, **Report order** (`academics/order`, `Subject.reportOrder`; used by both report cards and the broadsheet), **Allocation grid** (`academics/grid`), allocations list, timetables, **Enter Scores**
   (`/scores`: Activity scores out of 3 for S1–S4 — typed or **Excel** (pre-filled template, one column per chapter; import kind `activities` with dynamic `columnsFor`); Exam scores for any exam of the term), **Comment Bank** (`/comment-bank`),
   Examinations (create/edit/delete, results, broadsheets, **Analysis** `exams/[id]/analysis` + PDF `api/reports/analysis`:
@@ -146,7 +150,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 
 - **Owner's focus (2026-11-22): students, parents, staff and academics** — prioritise these over finance/operations modules.
 - **Comparison with schoolmonitorug (owner's screenshots, 2026-11-22; nothing built yet).** Gaps in the focus areas, suggested order:
-  1. Next term fees on the report card. 2. Clubs & Houses (lists + membership). 3. CBC non-academic assessment (projects, games & sports,
+  1. Next term fees on the report card. 2. ✅ Clubs & Houses (lists + membership) — built 2026-11-22 with ✅ Quick registration and ✅ Confirm students (owner's order: 4, 2, 1). 3. CBC non-academic assessment (projects, games & sports,
   clubs, co-curricular, values exhibited) printed on the card — needs a sample card from the owner. 4. Students: Confirm Students (per term),
   export all photos as zip, quick registration, LIN page. 5. Staff: hours taught (from timetable). 6. Parents: sibling/family view, SMS keys,
   check portal. Lower priority: hostels/dormitories, automatic timetable generator. Still to see: System Reports menu, their parent features.
