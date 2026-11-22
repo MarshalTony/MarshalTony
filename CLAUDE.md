@@ -144,6 +144,13 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 
 ## 9. Pending / next ideas (not started unless the owner asks)
 
+- **Owner's focus (2026-11-22): students, parents, staff and academics** — prioritise these over finance/operations modules.
+- **Comparison with schoolmonitorug (owner's screenshots, 2026-11-22; nothing built yet).** Gaps in the focus areas, suggested order:
+  1. Next term fees on the report card. 2. Clubs & Houses (lists + membership). 3. CBC non-academic assessment (projects, games & sports,
+  clubs, co-curricular, values exhibited) printed on the card — needs a sample card from the owner. 4. Students: Confirm Students (per term),
+  export all photos as zip, quick registration, LIN page. 5. Staff: hours taught (from timetable). 6. Parents: sibling/family view, SMS keys,
+  check portal. Lower priority: hostels/dormitories, automatic timetable generator. Still to see: System Reports menu, their parent features.
+
 - **Agreed order (owner said "we go as your order"):** ✅ report readiness tracker → ✅ activity scores from Excel → ✅ subject order on report cards → combined BOT+MOT+EOT card (**only if the owner wants it — ask**) → students: ✅ results history on profile → ✅ data clean-up check → ✅ enrolment statistics (EMIS) → **next: student documents** (needs a migration for document records; files via `saveUpload`).
 
 - Termly report combining BOT + MOT + EOT on one card (if wanted).
