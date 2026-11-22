@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-22 — Clubs & Houses, Quick registration, Confirm students._
+_Last updated: 2026-11-22 — student data deleted again at the owner's request (backup schema `backup_20261122`)._
 
 ## 1. What this is
 
@@ -137,15 +137,17 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 - **Favicon / app icon:** `/api/icon?size=` (school logo via sharp, fallback "BO" badge; `/favicon.ico` rewritten to it in `next.config.ts`; icon tags in `src/app/layout.tsx` metadata).
 - **Fees & finance, HR/payroll, library, inventory, welfare/discipline, transport, communication, reports, settings, audit, backup, portals** — from phases 4–6 (see docs).
 
-## 8. Live data state (2026-11-20, after the owner's bulk delete)
+## 8. Live data state (2026-11-22, after the owner's second bulk delete)
 
-- **All student data deleted at the owner's request** (one SQL transaction, audit log action `BULK_DELETE_STUDENTS`):
-  1,096 students and everything linked (subjects, enrolments, marks, results, attendance, activity scores, remarks, comments, photos),
-  the 2 parents + 1 parent login, **both exams**, and the student/marks/attendance/activity import batches. No backup (owner's choice).
-  Fees tables were empty, so nothing financial was affected.
-- Kept: 75 staff, 6 classes, 20 streams, 32 subjects, 55 teacher allocations (2026), comment bank, 4 activity chapter titles, settings, staff logins.
-- Next for the school: re-import / register students (Excel import), check Students → Data check, create exams, enter scores.
-- Headteacher name still not set (Settings → School profile).
+- **2026-11-22: owner found an error in the imported data and asked to delete it** ("Students, parents and exam", backup first).
+  Deleted in one SQL transaction (audit log `BULK_DELETE_STUDENTS`): 1,082 students and everything linked (subjects, enrolments,
+  results, confirmations…), 876 parents, the exam "Beginning of term 3" (1 mark), the 6 activity chapters of Term 3, and the 10 student import batches.
+  **Backup kept inside the database: schema `backup_20261122`** (copies of Student, Guardian, StudentGuardian, StudentSubject, Enrollment,
+  Exam*, Mark, results, ActivityScore, LearningActivity, ImportBatch, … taken just before the delete; no API access). Drop it once the owner no longer needs it.
+- (Earlier, 2026-11-20: first bulk delete of 1,096 demo-era students and 2 exams, no backup.)
+- Kept: 75 staff, 231 teacher allocations (2026), 6 classes, 20 streams, 32 subjects (A-Level paper counts set), comment bank, settings,
+  headteacher name, staff logins (only 2 staff have logins), no fees data, no houses/clubs yet.
+- Next for the school: re-import the corrected student list, create the exam, create teacher logins, assign class teachers, add activity chapters.
 
 ## 9. Pending / next ideas (not started unless the owner asks)
 
