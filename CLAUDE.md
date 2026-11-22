@@ -61,7 +61,7 @@ See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/DEPLOYMENT.md`, `docs/API.
 - Dev server: `npx next dev -p 3000`. Demo data: `npm run db:demo` (demo users and their password are in `prisma/demo-data.ts`;
   `teacher1` = Okello Peter, class teacher of S1 A, English everywhere; also `bursar`, `librarian`).
   Local admin password can be reset with a bcrypt update in a scratch script (never commit it).
-- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (118 tests at last count:
+- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (121 tests at last count:
   unit in `tests/unit`, DB integration in `tests/integration`). Acceptance suite: `npm run test:acceptance`.
 - Browser verification with Playwright (pre-installed; `require('playwright')`), scripts kept in the scratchpad
   (they are not in the repo). Log in, drive the page, save PDFs and render them with `pdftoppm`/`pdftotext` to check.
@@ -106,6 +106,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 - **Averages for analysis and comments = average across ALL subjects** as printed on the card (`src/server/exams/report-scores.ts`: CBC subject totals for every O-Level exam, subject % for A-Level).
 - Report Cards page: Year → Term → Report (exam) → Class → Stream → Generate; or One student (search). Classes not in the exam are shown as such (fix by **Edit** on the exam).
 - Exams can be **edited** (name, type, term, dates, classes) and **deleted** (exams with marks need the name typed).
+- **Current year/term switcher** (Settings → Years & terms; header badge from `app/(app)/layout.tsx` → `AppShell period`): `PeriodSwitcher` (year → term) calls `setCurrentTerm`; per-year readiness (terms, enrolled, subjects, allocations, fees, exams + warnings); `createAcademicYearWithTerms` (3 terms, dates from `src/lib/academic-year.ts`, optional allocation copy, fills previous last term's nextTermStart), `copyTeacherAllocations`, `deleteAcademicYear` (only if unused). New-year order: create → promote (old year current) → allocations/fees → switch.
 - **Exam subjects follow the students:** `syncExamSubjects` (`src/server/exams/exam-subjects.ts`) adds every subject active students of an exam class take (usual max per level; never removes) —
   run on the exam page, marks sheet, readiness and results generation. (Bug 2026-11-20: exam created before S2/S3/S5 were imported had no subjects for them.)
 

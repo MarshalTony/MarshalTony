@@ -1,5 +1,6 @@
 "use server";
 import { z } from "zod";
+import { termProblems } from "@/lib/academic-year";
 import { prisma } from "@/lib/db";
 import { action, zs, UserError } from "../action";
 import { audit } from "../audit";
@@ -80,6 +81,85 @@ export const saveTerm = action(
   },
 );
 
+/** New academic year with its three terms in one step (Settings → Years & terms → New academic year). */
+export const createAcademicYearWithTerms = action(
+  {
+    permission: "settings.manage", revalidate: "/settings/academic",
+    schema: z.object({
+      name: zs.str(20), startDate: zs.date(), endDate: zs.date(), copyAllocationsFrom: zs.optId(),
+      t1Start: zs.date(), t1End: zs.date(), t2Start: zs.date(), t2End: zs.date(), t3Start: zs.date(), t3End: zs.date(),
+    }),
+  },
+  async (d, user) => {
+    if (d.endDate <= d.startDate) throw new UserError("The year's end date must be after its start date.");
+    if (await prisma.academicYear.findFirst({ where: { name: { equals: d.name, mode: "insensitive" } } })) throw new UserError(`The academic year ${d.name} already exists.`);
+    const iso = (x: Date) => x.toISOString().slice(0, 10);
+    const terms = [[1, d.t1Start, d.t1End], [2, d.t2Start, d.t2End], [3, d.t3Start, d.t3End]] as const;
+    const problems = termProblems(terms.map(([number, a, b]) => ({ number, startDate: iso(a), endDate: iso(b) })), { startDate: iso(d.startDate), endDate: iso(d.endDate) });
+    if (problems.length) throw new UserError(problems.join(" · "));
+    const { year, copied } = await prisma.$transaction(async (tx) => {
+      const year = await tx.academicYear.create({ data: { name: d.name, startDate: d.startDate, endDate: d.endDate } });
+      for (const [number, startDate, endDate] of terms) {
+        const next = terms.find(([n]) => n === number + 1);
+        await tx.term.create({ data: { academicYearId: year.id, number, name: `Term ${number}`, startDate, endDate, nextTermStart: next ? next[1] : null } });
+      }
+      // The previous year's last term: "Next term begins" (printed on report cards) = this year's Term 1, if not set yet.
+      const prevLast = await tx.term.findFirst({ where: { academicYear: { startDate: { lt: d.startDate } } }, orderBy: { startDate: "desc" } });
+      if (prevLast && !prevLast.nextTermStart) await tx.term.update({ where: { id: prevLast.id }, data: { nextTermStart: d.t1Start } });
+      let copied = 0;
+      if (d.copyAllocationsFrom) {
+        const from = await tx.teacherAllocation.findMany({ where: { academicYearId: d.copyAllocationsFrom, stream: { isActive: true }, staff: { status: { not: "EXITED" } } }, select: { staffId: true, subjectId: true, streamId: true } });
+        copied = (await tx.teacherAllocation.createMany({ data: from.map((a) => ({ ...a, academicYearId: year.id })), skipDuplicates: true })).count;
+      }
+      await audit(user.id, "CREATE", "AcademicYear", year.id, { name: d.name, terms: 3, allocationsCopied: copied }, tx);
+      return { year, copied };
+    });
+    return { ok: true, message: `${year.name} created with Terms 1–3${copied ? ` and ${copied} teacher allocations copied` : ""}. It is not current yet — switch to it when the year starts.` };
+  },
+);
+
+/** Delete a year created by mistake — only while nothing (students, exams, fees, marks…) uses it. Its terms and teacher allocations go with it. */
+export const deleteAcademicYear = action(
+  { permission: "settings.manage", revalidate: "/settings/academic", schema: z.object({ id: zs.id() }) },
+  async ({ id }, user) => {
+    const y = await prisma.academicYear.findUniqueOrThrow({ where: { id }, include: { terms: true } });
+    if (y.isCurrent) throw new UserError(`${y.name} is the current year. Switch to another year first.`);
+    const [enrolled, subjects, exams, fees] = await Promise.all([
+      prisma.enrollment.count({ where: { academicYearId: id } }),
+      prisma.studentSubject.count({ where: { academicYearId: id } }),
+      prisma.exam.count({ where: { term: { academicYearId: id } } }),
+      prisma.feeStructure.count({ where: { term: { academicYearId: id } } }),
+    ]);
+    if (enrolled || subjects || exams || fees)
+      throw new UserError(`${y.name} is already in use (${[enrolled && `${enrolled} enrolments`, subjects && `${subjects} student subjects`, exams && `${exams} exams`, fees && `${fees} fee structures`].filter(Boolean).join(", ")}) and cannot be deleted.`);
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.teacherAllocation.deleteMany({ where: { academicYearId: id } });
+        await tx.term.deleteMany({ where: { academicYearId: id } });
+        await tx.academicYear.delete({ where: { id } });
+        await audit(user.id, "DELETE", "AcademicYear", id, { name: y.name }, tx);
+      });
+    } catch (e) {
+      if (e instanceof UserError) throw e;
+      throw new UserError(`${y.name} is already used by other records (attendance, activities, timetable…) and cannot be deleted.`);
+    }
+    return { ok: true, message: `Academic year ${y.name} deleted.` };
+  },
+);
+
+/** Copy teacher allocations from one year to another (skips ones already there and staff who have left). */
+export const copyTeacherAllocations = action(
+  { permission: "settings.manage", revalidate: "/settings/academic", schema: z.object({ fromYearId: zs.id(), toYearId: zs.id() }) },
+  async ({ fromYearId, toYearId }, user) => {
+    if (fromYearId === toYearId) throw new UserError("Choose two different years.");
+    const [from, to] = await Promise.all([prisma.academicYear.findUniqueOrThrow({ where: { id: fromYearId } }), prisma.academicYear.findUniqueOrThrow({ where: { id: toYearId } })]);
+    const list = await prisma.teacherAllocation.findMany({ where: { academicYearId: fromYearId, stream: { isActive: true }, staff: { status: { not: "EXITED" } } }, select: { staffId: true, subjectId: true, streamId: true } });
+    const { count } = await prisma.teacherAllocation.createMany({ data: list.map((a) => ({ ...a, academicYearId: toYearId })), skipDuplicates: true });
+    await audit(user.id, "COPY_ALLOCATIONS", "AcademicYear", toYearId, { from: from.name, to: to.name, count });
+    return { ok: true, message: count ? `${count} teacher allocation(s) copied from ${from.name} to ${to.name}.` : `Nothing to copy — ${to.name} already has these allocations.` };
+  },
+);
+
 export const setCurrentTerm = action(
   { permission: "settings.manage", revalidate: "/", schema: z.object({ id: zs.id() }) },
   async ({ id }, user) => {
@@ -91,7 +171,8 @@ export const setCurrentTerm = action(
       prisma.academicYear.update({ where: { id: term.academicYearId }, data: { isCurrent: true } }),
     ]);
     await audit(user.id, "SET_CURRENT", "Term", id);
-    return { ok: true, message: `${term.name} is now the current term.` };
+    const y = await prisma.academicYear.findUniqueOrThrow({ where: { id: term.academicYearId } });
+    return { ok: true, message: `The school is now working in ${y.name}, ${term.name}.` };
   },
 );
 

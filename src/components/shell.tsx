@@ -16,11 +16,13 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 export function AppShell({
-  nav, user, school, notifications, canSearchStudents, logout, children,
+  nav, user, school, notifications, canSearchStudents, logout, children, period,
 }: {
   nav: NavGroup[]; user: { fullName: string; roles: string[] }; school: { name: string; logo: React.ReactNode };
   notifications: { id: string; title: string; urgent: boolean }[]; canSearchStudents: boolean;
   logout: () => Promise<void>; children: React.ReactNode;
+  /** Current academic year and term, e.g. "2026 · Term 3" (links to the switcher for admins). */
+  period?: { label: string; href: string | null };
 }) {
   const [open, setOpen] = React.useState(false);
   const [bell, setBell] = React.useState(false);
@@ -93,6 +95,9 @@ export function AppShell({
             </form>
           ) : <div className="flex-1" />}
           <div className="ml-auto flex items-center gap-1">
+            {period && (period.href
+              ? <Link href={period.href} title="Current academic year and term — click to switch" className="mr-1 hidden whitespace-nowrap rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-800 hover:bg-brand-100 sm:inline-block">{period.label}</Link>
+              : <span title="Current academic year and term" className="mr-1 hidden whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 sm:inline-block">{period.label}</span>)}
             <div className="relative">
               <button onClick={() => setBell(!bell)} className="relative rounded-full p-2 text-slate-600 hover:bg-slate-100" aria-label="Notifications">
                 <Bell className="h-5 w-5" />
