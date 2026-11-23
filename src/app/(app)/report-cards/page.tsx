@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/db";
-import { requirePage } from "@/server/auth";
+import { requirePage, can } from "@/server/auth";
 import { ReportCardPicker } from "@/components/report-card-picker";
 import { Alert, PageHeader } from "@/components/ui/card";
 
 export const metadata = { title: "Report cards" };
 
 export default async function ReportCardsPage() {
-  await requirePage("reportcards.generate");
+  const user = await requirePage("reportcards.generate");
   const [years, terms, exams, classes] = await Promise.all([
     prisma.academicYear.findMany({ orderBy: { startDate: "desc" } }),
     prisma.term.findMany({ orderBy: { startDate: "asc" } }),
@@ -28,6 +28,7 @@ export default async function ReportCardsPage() {
           terms={terms.map((t) => ({ id: t.id, name: t.name, yearId: t.academicYearId, isCurrent: t.isCurrent }))}
           exams={exams.map((e) => ({ id: e.id, name: e.name, termId: e.termId, typeCode: e.examType.code, classIds: e.classes.map((c) => c.classId), ready: e._count.results > 0 || e._count.marks > 0 }))}
           classes={classes.map((c) => ({ id: c.id, name: c.name, streams: c.streams.map((s) => ({ id: s.id, name: s.name })) }))}
+          canScoreSheet={can(user, "results.view")}
         />
       )}
     </>

@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { FileText, Search, Users, User } from "lucide-react";
+import { Download, FileText, Search, Sheet, Users, User } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input, Label, Select } from "./ui/input";
 
@@ -14,7 +14,7 @@ type Found = { id: string; name: string; admissionNo: string; cls: string; statu
  * Report cards: Year → Term → Report (exam) → Class → Stream, then Generate (one PDF for the class/stream);
  * or search one student for the same report. PDFs open in a new tab.
  */
-export function ReportCardPicker({ years, terms, exams, classes }: { years: Year[]; terms: Term[]; exams: Exam[]; classes: Cls[] }) {
+export function ReportCardPicker({ years, terms, exams, classes, canScoreSheet = false }: { years: Year[]; terms: Term[]; exams: Exam[]; classes: Cls[]; canScoreSheet?: boolean }) {
   const firstYear = years.find((y) => y.isCurrent) ?? years[0];
   const [yearId, setYearId] = React.useState(firstYear?.id ?? "");
   const termsOf = (y: string) => terms.filter((t) => t.yearId === y);
@@ -58,6 +58,8 @@ export function ReportCardPicker({ years, terms, exams, classes }: { years: Year
   }, [q, examId, student]);
 
   const classHref = examId && classId ? `/api/pdf/report-card?examId=${examId}&${streamId ? `streamId=${streamId}` : `classId=${classId}`}` : null;
+  // Score sheet for the same exam × class / stream (subject scores as on the report cards).
+  const sheetHref = examId && classId ? `/api/reports/scoresheet?examId=${examId}&classId=${classId}${streamId ? `&streamId=${streamId}` : ""}` : null;
   const studentHref = examId && student ? `/api/pdf/report-card?examId=${examId}&studentId=${student.id}` : null;
   const field = (id: string, label: string, el: React.ReactNode) => <div className="space-y-1"><Label htmlFor={id}>{label}</Label>{el}</div>;
 
@@ -89,11 +91,18 @@ export function ReportCardPicker({ years, terms, exams, classes }: { years: Year
           )}
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {classHref ? <Button asChild><a href={classHref} target="_blank" rel="noopener"><FileText />Generate report cards</a></Button> : <Button disabled><FileText />Generate report cards</Button>}
+            {canScoreSheet && (sheetHref ? (
+              <>
+                <Button asChild variant="secondary"><a href={`${sheetHref}&format=pdf`} target="_blank" rel="noopener"><Sheet />Score sheet PDF</a></Button>
+                <Button asChild variant="outline"><a href={`${sheetHref}&format=pdf&sort=name`} target="_blank" rel="noopener"><Sheet />Score sheet A–Z</a></Button>
+                <Button asChild variant="outline"><a href={`${sheetHref}&format=xlsx`}><Download />Score sheet Excel</a></Button>
+              </>
+            ) : <Button disabled variant="secondary"><Sheet />Score sheet</Button>)}
             {exam && classId && <a className="text-sm text-brand-700 hover:underline" href={`/exams/${exam.id}/comments?streamId=${streamId || cls?.streams[0]?.id || ""}`}>Comments</a>}
             {exam && classId && <a className="text-sm text-brand-700 hover:underline" href={`/exams/${exam.id}/analysis?classId=${classId}`}>Analysis</a>}
             {exam && classId && <a className="text-sm text-brand-700 hover:underline" href={`/exams/${exam.id}/readiness?classId=${classId}`}>Readiness</a>}
           </div>
-          <p className="mt-2 text-xs text-slate-500">One PDF with a card for every student {streamId ? "in the stream" : "in the class"}, opened in a new tab to print or save. Latest saved marks are included automatically.</p>
+          <p className="mt-2 text-xs text-slate-500">One PDF with a card for every student {streamId ? "in the stream" : "in the class"}, opened in a new tab to print or save. Latest saved marks are included automatically.{canScoreSheet && " The score sheet lists every learner's subject scores, average, grade and positions for the same class or stream, with subject statistics."}</p>
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-4">
