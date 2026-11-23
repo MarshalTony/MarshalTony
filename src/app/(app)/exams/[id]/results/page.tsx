@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BarChart3, Download } from "lucide-react";
+import { BarChart3, Download, FileText } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePage } from "@/server/auth";
 import { loadRule } from "@/server/exams/results";
@@ -46,14 +46,18 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
   const basisLabel = { AVERAGE: "Average %", TOTAL: "Total", POINTS: "Points", AGGREGATE: `Aggregate (best ${rule.bestOfSubjects})` }[rule.rankingBasis];
   const rankVal = (r: (typeof results)[number]) => rule.rankingBasis === "AGGREGATE" ? r.aggregate ?? "—" : rule.rankingBasis === "POINTS" ? Number(r.points ?? 0) : rule.rankingBasis === "TOTAL" ? Number(r.total) : `${Number(r.average).toFixed(2)}%`;
   const base = `/api/reports/broadsheet?examId=${id}&classId=${classId}${streamId ? `&streamId=${streamId}` : ""}`;
+  // Score sheet = what the report cards show (S1–S4: activities /20 + exam /80), for the class or the chosen stream.
+  const sheet = `/api/reports/scoresheet?examId=${id}&classId=${classId}${streamId ? `&streamId=${streamId}` : ""}`;
   return (
     <>
       <PageHeader title={`Results — ${cls.name}`} description={`${exam.name} · ranked by ${basisLabel.toLowerCase()} · ties share a position`} actions={
         <>
           <Button asChild variant="outline"><Link href={`/exams/${id}`}>Back to exam</Link></Button>
           <Button asChild><Link href={`/exams/${id}/analysis?classId=${classId}`}><BarChart3 />Analysis</Link></Button>
-          <Button asChild variant="outline"><a href={`${base}&format=xlsx`}><Download />Broadsheet Excel</a></Button>
-          <Button asChild variant="outline"><a href={`${base}&format=pdf`} target="_blank"><Download />Broadsheet PDF</a></Button>
+          <Button asChild><a href={`${sheet}&format=pdf`} target="_blank"><FileText />Score sheet PDF</a></Button>
+          <Button asChild variant="outline"><a href={`${sheet}&format=xlsx`}><Download />Score sheet Excel</a></Button>
+          <Button asChild variant="outline"><a href={`${sheet}&format=pdf&sort=name`} target="_blank"><FileText />Score sheet A–Z</a></Button>
+          <Button asChild variant="ghost"><a href={`${base}&format=xlsx`}><Download />Exam marks only (Excel)</a></Button>
         </>
       } />
       <FilterBar filters={[

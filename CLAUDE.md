@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-23 — A-Level combination category (Arts/Sciences) decides the stream._
+_Last updated: 2026-11-23 — printed score sheet per class / stream._
 
 ## 1. What this is
 
@@ -61,7 +61,7 @@ See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/DEPLOYMENT.md`, `docs/API.
 - Dev server: `npx next dev -p 3000`. Demo data: `npm run db:demo` (demo users and their password are in `prisma/demo-data.ts`;
   `teacher1` = Okello Peter, class teacher of S1 A, English everywhere; also `bursar`, `librarian`).
   Local admin password can be reset with a bcrypt update in a scratch script (never commit it).
-- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (127 tests at last count:
+- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (129 tests at last count:
   unit in `tests/unit`, DB integration in `tests/integration`). Acceptance suite: `npm run test:acceptance`.
 - Browser verification with Playwright (pre-installed; `require('playwright')`), scripts kept in the scratchpad
   (they are not in the repo). Log in, drive the page, save PDFs and render them with `pdftoppm`/`pdftotext` to check.
@@ -131,6 +131,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
   winner, best/weakest subject, best stream, best 10/last 10 class, best 10/last 3 per stream, subject×stream with teachers,
   teacher averages, improvement vs comparison exam, at-risk), **Readiness** `exams/[id]/readiness` (marks / activity scores / comments
   progress per class × stream × subject, teachers to follow up; logic `src/server/exams/progress.ts` + `src/lib/exams/progress.ts`), comments page `exams/[id]/comments` (fill from bank, ↻),
+  **Score sheet** (exam → Results → *Score sheet PDF / Excel / A–Z*; `api/reports/scoresheet`, `src/server/reports/scoresheet.tsx`, helpers `src/lib/scoresheet.ts`): class or stream, subject scores as on the report card (S1–S4 CBC total /100 = act/20 + exam/80; A-Level % + grade A–F, points), No., total, average, grade/points, class & stream positions (O-Level by all-subject average with ties; A-Level from results), foot: candidates, mean, highest, lowest, grade counts, teacher initials; A3 when >13 subjects. Old broadsheet kept as *Exam marks only (Excel)*.
   **Report Cards** (`/report-cards`; S1–S4 CBC card, S5–S6 A-Level paper card `report-card-alevel.tsx`), UNEB, attendance, assignments.
 - **Staff logins** (`staff/logins`, `users.manage`): per-staff create login with admin-chosen username + password and
   "must change at first sign-in" (default on), bulk create for everyone without one (first.last usernames, one starting password),
