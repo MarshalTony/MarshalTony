@@ -9,6 +9,7 @@ import { generateAdmissionNo, defaultSubjectIds, assertStreamInClass, currentYea
 import { generateTempPassword, hashPassword } from "../passwords";
 import { deleteStudentRecord } from "../deletion";
 import { aLevelProblems } from "@/lib/alevel";
+import { classSubjectStatus } from "../class-subjects";
 
 const studentFields = {
   admissionNo: upperOpt(30),
@@ -118,6 +119,13 @@ export const setStudentSubjects = action(
       const student = await tx.student.findUniqueOrThrow({ where: { id }, include: { schoolClass: true } });
       const subs = await tx.subject.findMany({ where: { id: { in: subjectIds } } });
       if (subs.some((s) => s.level !== student.schoolClass.level)) throw new UserError("All subjects must belong to the student's level.");
+      if (student.schoolClass.level === "O_LEVEL") {
+        // A subject not offered in this class can't be added (one the student already has may stay).
+        const { status } = await classSubjectStatus(tx, student.classId);
+        const had = new Set((await tx.studentSubject.findMany({ where: { studentId: id, academicYearId: year.id }, select: { subjectId: true } })).map((x) => x.subjectId));
+        const bad = subs.filter((s) => status.get(s.id) === "NOT_OFFERED" && !had.has(s.id));
+        if (bad.length) throw new UserError(`${bad.map((s) => s.name).join(", ")} ${bad.length === 1 ? "is" : "are"} not offered in ${student.schoolClass.name} (Classes & Subjects → Subjects by class).`);
+      }
       if (student.schoolClass.level === "A_LEVEL") {
         const problems = aLevelProblems(subs);
         if (problems.length) throw new UserError(`S5–S6 take at most 3 principal subjects plus General Paper and either Sub-Maths or Sub-ICT: ${problems.join("; ")}.`);
@@ -338,8 +346,10 @@ export const bulkUpdateStudents = action(
       const cls = await tx.schoolClass.findUniqueOrThrow({ where: { id: classId }, include: { streams: true } });
       const streamIds = new Set(cls.streams.map((s) => s.id));
       // Only non-compulsory subjects of this level can be ticked here.
+      // Subjects the learners may choose in this class: O-Level = optional in this class (Subjects by class); A-Level = principal/subsidiary.
+      const { status: classStatus } = await classSubjectStatus(tx, classId);
       const levelSubjects = await tx.subject.findMany({ where: { level: cls.level, category: { not: "COMPULSORY" } }, select: { id: true, code: true, name: true, category: true } });
-      const electiveIds = new Set(levelSubjects.map((s) => s.id));
+      const electiveIds = new Set(cls.level === "O_LEVEL" ? [...classStatus].filter(([, s]) => s === "OPTIONAL").map(([id]) => id) : levelSubjects.map((s) => s.id));
       const comboIds = new Set((await tx.subjectCombination.findMany({ select: { id: true } })).map((c) => c.id));
       const houseIds = new Set((await tx.house.findMany({ select: { id: true } })).map((h) => h.id));
       const before = new Map((await tx.student.findMany({

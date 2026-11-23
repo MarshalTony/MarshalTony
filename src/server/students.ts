@@ -2,6 +2,7 @@ import "server-only";
 import type { Tx } from "@/lib/db";
 import { UserError } from "./action";
 import { nextNumber } from "./counters";
+import { classSubjectStatus } from "./class-subjects";
 
 export async function generateAdmissionNo(tx: Tx, year: number) {
   for (;;) {
@@ -11,7 +12,7 @@ export async function generateAdmissionNo(tx: Tx, year: number) {
   }
 }
 
-/** Default subject enrollment: O-Level compulsory subjects, or the A-Level combination's subjects. */
+/** Default subject enrollment: the subjects compulsory in this O-Level class (Subjects by class), or the A-Level combination's subjects. */
 export async function defaultSubjectIds(tx: Tx, classId: string, combinationId: string | null) {
   const cls = await tx.schoolClass.findUniqueOrThrow({ where: { id: classId } });
   if (cls.level === "A_LEVEL") {
@@ -19,8 +20,8 @@ export async function defaultSubjectIds(tx: Tx, classId: string, combinationId: 
     const combo = await tx.combinationSubject.findMany({ where: { combinationId } });
     return combo.map((c) => c.subjectId);
   }
-  const subs = await tx.subject.findMany({ where: { level: "O_LEVEL", category: "COMPULSORY", isActive: true } });
-  return subs.map((s) => s.id);
+  const { status } = await classSubjectStatus(tx, classId);
+  return [...status].filter(([, s]) => s === "COMPULSORY").map(([id]) => id);
 }
 
 export async function assertStreamInClass(tx: Tx, classId: string, streamId: string) {

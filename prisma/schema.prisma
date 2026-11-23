@@ -247,6 +247,7 @@ model SchoolClass {
   isActive Boolean @default(true)
 
   streams       Stream[]
+  subjectRules  ClassSubject[]
   students      Student[]
   enrollments   Enrollment[]
   examSubjects  ExamSubject[]
@@ -303,6 +304,7 @@ model Subject {
   department   Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
   combinations       CombinationSubject[]
+  classRules         ClassSubject[]
   teacherAllocations TeacherAllocation[]
   studentSubjects    StudentSubject[]
   examSubjects       ExamSubject[]
@@ -1694,4 +1696,24 @@ model StudentConfirmation {
 
   @@unique([studentId, termId])
   @@index([termId])
+}
+
+// ---------------------------------------------------------------- Subjects per class
+/// How an O-Level subject is taken in one class (e.g. Kiswahili compulsory in S1–S2, optional in S3–S4).
+/// No row = the subject's own category (compulsory / elective) applies.
+enum ClassSubjectStatus {
+  COMPULSORY
+  OPTIONAL
+  NOT_OFFERED
+}
+
+model ClassSubject {
+  id          String             @id @default(cuid())
+  classId     String
+  schoolClass SchoolClass        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId   String
+  subject     Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  status      ClassSubjectStatus
+
+  @@unique([classId, subjectId])
 }

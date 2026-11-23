@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-22 — student data deleted again at the owner's request (backup schema `backup_20261122`)._
+_Last updated: 2026-11-23 — Subjects by class (compulsory in S1–S2, optional in S3–S4…)._
 
 ## 1. What this is
 
@@ -61,7 +61,7 @@ See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/DEPLOYMENT.md`, `docs/API.
 - Dev server: `npx next dev -p 3000`. Demo data: `npm run db:demo` (demo users and their password are in `prisma/demo-data.ts`;
   `teacher1` = Okello Peter, class teacher of S1 A, English everywhere; also `bursar`, `librarian`).
   Local admin password can be reset with a bcrypt update in a scratch script (never commit it).
-- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (121 tests at last count:
+- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (125 tests at last count:
   unit in `tests/unit`, DB integration in `tests/integration`). Acceptance suite: `npm run test:acceptance`.
 - Browser verification with Playwright (pre-installed; `require('playwright')`), scripts kept in the scratchpad
   (they are not in the repo). Log in, drive the page, save PDFs and render them with `pdftoppm`/`pdftotext` to check.
@@ -80,7 +80,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 `continuous_assessment` (LearningActivity, ActivityScore, CompetencyRemark, SchoolPay code, altEmail, band descriptions),
 `leaving_clearance` (StudentClearance, LeavingRecord), `comment_bank` (CommentTemplate), `subject_report_order` (Subject.reportOrder, default 100),
 `subject_papers` (Subject.paperCount — sets A-Level subjects except GP/S-MTC to 2; Mark.paper + new unique key),
-`clubs_houses_confirmation` (House, Club, ClubMember, StudentConfirmation; Student.houseId).
+`clubs_houses_confirmation` (House, Club, ClubMember, StudentConfirmation; Student.houseId), `class_subjects` (ClassSubject + enum ClassSubjectStatus).
 
 ## 6. Decisions agreed with the school (do not undo without asking)
 
@@ -107,6 +107,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 - Report Cards page: Year → Term → Report (exam) → Class → Stream → Generate; or One student (search). Classes not in the exam are shown as such (fix by **Edit** on the exam).
 - Exams can be **edited** (name, type, term, dates, classes) and **deleted** (exams with marks need the name typed).
 - **Current year/term switcher** (Settings → Years & terms; header badge from `app/(app)/layout.tsx` → `AppShell period`): `PeriodSwitcher` (year → term) calls `setCurrentTerm`; per-year readiness (terms, enrolled, subjects, allocations, fees, exams + warnings); `createAcademicYearWithTerms` (3 terms, dates from `src/lib/academic-year.ts`, optional allocation copy, fills previous last term's nextTermStart), `copyTeacherAllocations`, `deleteAcademicYear` (only if unused). New-year order: create → promote (old year current) → allocations/fees → switch.
+- **Subjects by class (O-Level)** (Classes & Subjects → Subjects by class, `academics/classes`): `ClassSubject` (class × subject → COMPULSORY | OPTIONAL | NOT_OFFERED; no row = subject category). `defaultSubjectIds` (registration, quick reg, import, promotion, Data-check fix) gives the class's compulsory subjects; Bulk edit columns = optional in the class; profile picker hides not-offered; `setStudentSubjects` refuses adding not-offered. `applyClassSubjectRules` adds missing compulsory + removes not-offered without marks (optional untouched). Helpers `src/lib/class-subjects.ts`, `src/server/class-subjects.ts`.
 - **Exam subjects follow the students:** `syncExamSubjects` (`src/server/exams/exam-subjects.ts`) adds every subject active students of an exam class take (usual max per level; never removes) —
   run on the exam page, marks sheet, readiness and results generation. (Bug 2026-11-20: exam created before S2/S3/S5 were imported had no subjects for them.)
 

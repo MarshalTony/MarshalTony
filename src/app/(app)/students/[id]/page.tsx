@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FileText, IdCard, Pencil, Printer, Trash2, LogOut } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { classSubjectStatus } from "@/server/class-subjects";
+import { STATUS_LABEL } from "@/lib/class-subjects";
 import { requirePage, can } from "@/server/auth";
 import {
   changeStudentStatus, createStudentAccount, deleteStudent, linkGuardian, saveGuardian, setStudentSubjects, transferStream, unlinkGuardian, createGuardianAccount,
@@ -40,6 +42,10 @@ export default async function StudentProfile({ params }: { params: Promise<{ id:
   const combos = await prisma.subjectCombination.findMany({ where: { isActive: true }, orderBy: { code: "asc" } });
   const manage = can(user, "students.manage");
   const enrolled = new Set(subjects.map((x) => x.subjectId));
+  // O-Level: how each subject is taken in this student's class (Subjects by class); not-offered ones are hidden unless already taken.
+  const { status: classStatus } = await classSubjectStatus(prisma, s.classId);
+  const pickable = levelSubjects.filter((sub) => s.schoolClass.level !== "O_LEVEL" || classStatus.get(sub.id) !== "NOT_OFFERED" || enrolled.has(sub.id));
+  const tag = (sub: (typeof levelSubjects)[number]) => (s.schoolClass.level === "O_LEVEL" ? STATUS_LABEL[classStatus.get(sub.id) ?? "OPTIONAL"].toLowerCase() : sub.category.toLowerCase());
   const attCount = (k: string) => attendance.find((a) => a.status === k)?._count ?? 0;
 
   return (
@@ -92,10 +98,10 @@ export default async function StudentProfile({ params }: { params: Promise<{ id:
                     <SelectField label="Combination" name="combinationId" defaultValue={s.combinationId ?? ""} placeholder="— none —" options={combos.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))} />
                   )}
                   <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                    {levelSubjects.map((sub) => (
+                    {pickable.map((sub) => (
                       <label key={sub.id} className="flex items-center gap-2 text-sm">
                         <input type="checkbox" name="subjectIds[]" value={sub.id} defaultChecked={enrolled.has(sub.id)} />
-                        {sub.name} <span className="text-xs text-slate-400">{sub.category.toLowerCase()}</span>
+                        {sub.name} <span className="text-xs text-slate-400">{tag(sub)}</span>
                       </label>
                     ))}
                   </div>

@@ -1,5 +1,7 @@
 "use server";
 import { z } from "zod";
+import { classSubjectStatus } from "../class-subjects";
+import { effectiveStatus, subjectFixes, type SubjectStatus } from "@/lib/class-subjects";
 import { prisma } from "@/lib/db";
 import { action, zs, UserError } from "../action";
 import { audit } from "../audit";
@@ -221,5 +223,71 @@ export const saveSubjectOrder = action(
     await prisma.$transaction(list.map((id, i) => prisma.subject.update({ where: { id }, data: { reportOrder: i + 1 } })));
     await audit(user.id, "SUBJECT_ORDER", "Subject", null, { level, order: list });
     return { ok: true, message: `Report-card order saved for ${level === "O_LEVEL" ? "O-Level" : "A-Level"} (${list.length} subjects).` };
+  },
+);
+
+// ---------------- Subjects by class (O-Level) ----------------
+/** Save how each O-Level subject is taken in each class: posted as `r_<classId>_<subjectId>` = COMPULSORY | OPTIONAL | NOT_OFFERED. */
+export const saveClassSubjects = action(
+  { permission: "academics.manage", revalidate: "/academics/classes", schema: z.object({}) },
+  async (_d, user, fd) => {
+    const [classes, subjects] = await Promise.all([
+      prisma.schoolClass.findMany({ where: { level: "O_LEVEL" }, select: { id: true } }),
+      prisma.subject.findMany({ where: { level: "O_LEVEL" }, select: { id: true, category: true } }),
+    ]);
+    const categoryOf = new Map(subjects.map((x) => [x.id, x.category]));
+    const okClass = new Set(classes.map((c) => c.id)), okSubject = new Set(subjects.map((x) => x.id));
+    const rows: { classId: string; subjectId: string; status: "COMPULSORY" | "OPTIONAL" | "NOT_OFFERED" }[] = [];
+    for (const [k, v] of fd.entries()) {
+      const m = /^r_([^_]+)_([^_]+)$/.exec(k);
+      if (!m || typeof v !== "string") continue;
+      if (!okClass.has(m[1]) || !okSubject.has(m[2])) throw new UserError("Unknown class or subject. Reload the page.");
+      if (v !== "COMPULSORY" && v !== "OPTIONAL" && v !== "NOT_OFFERED") throw new UserError("Choose Compulsory, Optional or Not offered.");
+      rows.push({ classId: m[1], subjectId: m[2], status: v });
+    }
+    if (!rows.length) return { ok: true, message: "Nothing to save." };
+    const stored = new Map((await prisma.classSubject.findMany()).map((r) => [`${r.classId}:${r.subjectId}`, r.status as SubjectStatus]));
+    // Compare with what applied before (the stored setting, or the subject's own category): only real changes are written and counted.
+    const changed = rows.filter((r) => effectiveStatus(categoryOf.get(r.subjectId) ?? "ELECTIVE", stored.get(`${r.classId}:${r.subjectId}`)) !== r.status);
+    await prisma.$transaction(async (tx) => {
+      for (const r of changed) {
+        await tx.classSubject.upsert({ where: { classId_subjectId: { classId: r.classId, subjectId: r.subjectId } }, update: { status: r.status }, create: r });
+      }
+      await audit(user.id, "SET_CLASS_SUBJECTS", "ClassSubject", null, { changed: changed.length, rows: changed.slice(0, 100) }, tx);
+    });
+    return { ok: true, message: changed.length ? `${changed.length} setting(s) saved. Use “Update students' subjects” to apply them to students already registered.` : "No changes to save." };
+  },
+);
+
+/**
+ * Bring students' subjects for the current year in line with Subjects by class: add the compulsory subjects they lack,
+ * remove subjects not offered in their class (kept when the student already has marks in them). Optional subjects are untouched.
+ */
+export const applyClassSubjectRules = action(
+  { permission: "academics.manage", revalidate: "/academics/classes", schema: z.object({ classId: zs.optId() }) },
+  async ({ classId }, user) => {
+    const year = await prisma.academicYear.findFirst({ where: { isCurrent: true } });
+    if (!year) throw new UserError("Set the current academic year first.");
+    const classes = await prisma.schoolClass.findMany({ where: { level: "O_LEVEL", ...(classId ? { id: classId } : {}) }, select: { id: true } });
+    let added = 0, removed = 0, kept = 0, students = 0;
+    await prisma.$transaction(async (tx) => {
+      for (const c of classes) {
+        const { status } = await classSubjectStatus(tx, c.id);
+        const list = await tx.student.findMany({
+          where: { classId: c.id, status: "ACTIVE" },
+          select: { id: true, subjects: { where: { academicYearId: year.id }, select: { subjectId: true } }, marks: { where: { exam: { term: { academicYearId: year.id } } }, select: { subjectId: true } } },
+        });
+        for (const s of list) {
+          const f = subjectFixes(s.subjects.map((x) => x.subjectId), status, new Set(s.marks.map((m) => m.subjectId)));
+          if (!f.add.length && !f.remove.length) { kept += f.keptWithMarks.length; continue; }
+          if (f.add.length) await tx.studentSubject.createMany({ data: f.add.map((subjectId) => ({ studentId: s.id, subjectId, academicYearId: year.id })), skipDuplicates: true });
+          if (f.remove.length) await tx.studentSubject.deleteMany({ where: { studentId: s.id, academicYearId: year.id, subjectId: { in: f.remove } } });
+          added += f.add.length; removed += f.remove.length; kept += f.keptWithMarks.length; students++;
+        }
+      }
+      await audit(user.id, "APPLY_CLASS_SUBJECTS", "ClassSubject", classId ?? null, { year: year.name, students, added, removed, keptWithMarks: kept }, tx);
+    }, { timeout: 120_000 });
+    if (!students) return { ok: true, message: `Every O-Level student's ${year.name} subjects already follow the class settings.${kept ? ` (${kept} not-offered subject(s) kept because they have marks.)` : ""}` };
+    return { ok: true, message: `${students} student(s) updated: ${added} compulsory subject(s) added, ${removed} not-offered subject(s) removed.${kept ? ` ${kept} kept because they already have marks.` : ""} Optional subjects were not changed.` };
   },
 );
