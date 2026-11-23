@@ -4,6 +4,7 @@ import { prisma, type Tx } from "@/lib/db";
 import type { CurrentUser } from "../auth";
 import { type Column, parseDate, parseGender, parseNumber } from "./excel";
 import { generateAdmissionNo, defaultSubjectIds } from "../students";
+import { streamForCombination } from "../combination-stream";
 import { postAdjustment } from "../fees/ledger";
 import { parseMarkInput, saveMarks, type MarkEntry } from "../exams/marks";
 import { validActivityScore } from "@/lib/cbc";
@@ -125,6 +126,8 @@ const students: ImportKind = {
     if (!year) throw new Error("Set a current academic year first.");
     for (const r of rows) {
       const { guardian, ...d } = r.data;
+      // S5–S6: the stream follows the combination's category (Arts / Sciences) when a stream holds it.
+      d.streamId = (await streamForCombination(tx, d.classId, d.combinationId, d.streamId)) ?? d.streamId;
       const admissionNo = d.admissionNo ?? (await generateAdmissionNo(tx, d.admissionDate.getUTCFullYear()));
       const s = await tx.student.create({ data: { ...d, admissionNo } });
       await tx.enrollment.create({ data: { studentId: s.id, academicYearId: year.id, classId: d.classId, streamId: d.streamId } });

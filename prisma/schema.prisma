@@ -258,14 +258,16 @@ model SchoolClass {
 }
 
 model Stream {
-  id             String      @id @default(cuid())
-  classId        String
-  schoolClass    SchoolClass @relation(fields: [classId], references: [id], onDelete: Restrict)
-  name           String
-  capacity       Int?
-  classTeacherId String?
-  classTeacher   Staff?      @relation("ClassTeacher", fields: [classTeacherId], references: [id], onDelete: SetNull)
-  isActive       Boolean     @default(true)
+  id                  String               @id @default(cuid())
+  classId             String
+  schoolClass         SchoolClass          @relation(fields: [classId], references: [id], onDelete: Restrict)
+  name                String
+  capacity            Int?
+  classTeacherId      String?
+  classTeacher        Staff?               @relation("ClassTeacher", fields: [classTeacherId], references: [id], onDelete: SetNull)
+  isActive            Boolean              @default(true)
+  /// A-Level: which combinations this stream holds (students are placed here by their combination's category)
+  combinationCategory CombinationCategory?
 
   students           Student[]
   enrollments        Enrollment[]
@@ -324,6 +326,8 @@ model SubjectCombination {
   id       String               @id @default(cuid())
   code     String               @unique
   name     String
+  /// Arts or Sciences: decides the student's stream (the S5/S6 stream with the same category)
+  category CombinationCategory?
   isActive Boolean              @default(true)
   subjects CombinationSubject[]
   students Student[]
@@ -1716,4 +1720,10 @@ model ClassSubject {
   status      ClassSubjectStatus
 
   @@unique([classId, subjectId])
+}
+
+/// A-Level combination category (decides the stream).
+enum CombinationCategory {
+  ARTS
+  SCIENCES
 }

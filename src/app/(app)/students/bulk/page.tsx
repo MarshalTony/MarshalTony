@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { classSubjectStatus } from "@/server/class-subjects";
+import { streamCategory } from "@/lib/combination-stream";
 import { requirePage } from "@/server/auth";
 import { bulkUpdateStudents } from "@/server/actions/students";
 import { BulkStudentGrid } from "@/components/bulk-student-grid";
@@ -58,16 +59,16 @@ export default async function BulkStudentsPage({ searchParams }: { searchParams:
       {picker}
       <p className="mb-2 text-xs text-slate-500">
         Subjects are for {year.name}. Compulsory subjects are not shown and are not changed. A stream change also moves the student&apos;s {year.name} enrolment (as <i>Transfer stream</i>). Changing day/boarding does not change invoices already issued.
-        {cls.level === "A_LEVEL" && " Choosing a combination ticks its subjects."}
+        {cls.level === "A_LEVEL" && " Choosing a combination ticks its subjects and moves the student to the stream of its category (Arts / Sciences)."}
       </p>
       {students.length === 0 ? <Alert>No active students in {cls.name}{streamFilter ? ` ${streamFilter.name}` : ""}.</Alert> : (
         <BulkStudentGrid
           action={bulkUpdateStudents}
           classId={cls.id}
-          streams={cls.streams.map((s) => ({ value: s.id, label: s.name }))}
+          streams={cls.streams.map((s) => ({ value: s.id, label: s.name, category: cls.level === "A_LEVEL" ? streamCategory(s) : null }))}
           electives={electives.map((e) => ({ id: e.id, label: e.shortName || e.code, title: `${e.name}${cls.level === "O_LEVEL" ? (e.category === "COMPULSORY" ? " (optional in this class)" : "") : ` (${e.category.toLowerCase()})`}` }))}
           houses={houses.map((h) => ({ value: h.id, label: h.name }))}
-          combinations={combos ? combos.map((c) => ({ value: c.id, label: c.code, subjectIds: c.subjects.map((x) => x.subjectId) })) : null}
+          combinations={combos ? combos.map((c) => ({ value: c.id, label: c.code, subjectIds: c.subjects.map((x) => x.subjectId), category: c.category })) : null}
           rows={students.map((s) => ({
             id: s.id, admissionNo: s.admissionNo, lastName: s.lastName, firstName: s.firstName, otherNames: s.otherNames ?? "",
             gender: s.gender, streamId: s.streamId, residence: s.residence, linNumber: s.linNumber ?? "", schoolPayCode: s.schoolPayCode ?? "",

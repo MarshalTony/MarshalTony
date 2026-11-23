@@ -6,7 +6,7 @@ import { action, zs, UserError } from "../action";
 import { audit } from "../audit";
 import { fileFrom, saveUpload } from "../storage";
 import { generateTempPassword, hashPassword, passwordProblem } from "../passwords";
-import { bandsField, divisionsField } from "../schemas";
+import { bandsField, divisionsField, optCombinationCategory } from "../schemas";
 
 // ---------------- School profile ----------------
 export const saveSchoolProfile = action(
@@ -194,7 +194,7 @@ export const saveStream = action(
   {
     permission: "settings.manage",
     revalidate: "/settings/classes",
-    schema: z.object({ id: zs.optId(), classId: zs.id(), name: zs.str(30), capacity: zs.optInt(), classTeacherId: zs.optId(), isActive: zs.bool() }),
+    schema: z.object({ id: zs.optId(), classId: zs.id(), name: zs.str(30), capacity: zs.optInt(), classTeacherId: zs.optId(), isActive: zs.bool(), combinationCategory: optCombinationCategory() }),
   },
   async ({ id, ...data }, user) => {
     const s = id ? await prisma.stream.update({ where: { id }, data }) : await prisma.stream.create({ data });

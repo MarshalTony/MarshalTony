@@ -1,5 +1,6 @@
 "use server";
 import { z } from "zod";
+import { optCombinationCategory } from "../schemas";
 import { classSubjectStatus } from "../class-subjects";
 import { effectiveStatus, subjectFixes, type SubjectStatus } from "@/lib/class-subjects";
 import { prisma } from "@/lib/db";
@@ -7,6 +8,8 @@ import { action, zs, UserError } from "../action";
 import { audit } from "../audit";
 import { currentYearOrThrow } from "../students";
 import { aLevelProblems } from "@/lib/alevel";
+import { pickStream } from "@/lib/combination-stream";
+import { moveToStream } from "../combination-stream";
 
 export const saveSubject = action(
   {
@@ -32,7 +35,7 @@ export const saveCombination = action(
   {
     permission: "academics.manage",
     revalidate: "/academics",
-    schema: z.object({ id: zs.optId(), code: z.string().trim().toUpperCase().min(2).max(10), name: zs.str(120), isActive: zs.bool(), subjectIds: zs.ids() }),
+    schema: z.object({ id: zs.optId(), code: z.string().trim().toUpperCase().min(2).max(10), name: zs.str(120), category: optCombinationCategory(), isActive: zs.bool(), subjectIds: zs.ids() }),
   },
   async ({ id, subjectIds, ...data }, user) => {
     const subs = await prisma.subject.findMany({ where: { id: { in: subjectIds } } });
@@ -289,5 +292,27 @@ export const applyClassSubjectRules = action(
     }, { timeout: 120_000 });
     if (!students) return { ok: true, message: `Every O-Level student's ${year.name} subjects already follow the class settings.${kept ? ` (${kept} not-offered subject(s) kept because they have marks.)` : ""}` };
     return { ok: true, message: `${students} student(s) updated: ${added} compulsory subject(s) added, ${removed} not-offered subject(s) removed.${kept ? ` ${kept} kept because they already have marks.` : ""} Optional subjects were not changed.` };
+  },
+);
+
+/** S5–S6: move every active student to the stream that holds their combination's category (Arts / Sciences). */
+export const placeStudentsByCombination = action(
+  { permission: "academics.manage", revalidate: "/academics", schema: z.object({}) },
+  async (_d, user) => {
+    const year = await currentYearOrThrow(prisma);
+    const students = await prisma.student.findMany({
+      where: { status: "ACTIVE", schoolClass: { level: "A_LEVEL" }, combination: { category: { not: null } } },
+      select: { id: true, classId: true, streamId: true, combination: { select: { category: true } }, schoolClass: { select: { streams: { select: { id: true, name: true, isActive: true, combinationCategory: true } } } } },
+    });
+    let moved = 0, noStream = 0;
+    await prisma.$transaction(async (tx) => {
+      for (const s of students) {
+        const to = pickStream(s.schoolClass.streams, s.combination?.category, s.streamId);
+        if (!to) { noStream++; continue; }
+        if (await moveToStream(tx, { studentId: s.id, fromStreamId: s.streamId, toStreamId: to, classId: s.classId, academicYearId: year.id, userId: user.id, reason: "combination category" })) moved++;
+      }
+      await audit(user.id, "PLACE_BY_COMBINATION", "Student", null, { moved, noStream }, tx);
+    }, { timeout: 120_000 });
+    return { ok: true, message: `${moved} student(s) moved to the stream of their combination's category.${noStream ? ` ${noStream} not moved: no stream in their class holds their category (set it in Settings → Classes & streams).` : ""}` };
   },
 );

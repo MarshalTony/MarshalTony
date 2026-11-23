@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
-import { saveCombination, saveSubject } from "@/server/actions/academics";
+import { placeStudentsByCombination, saveCombination, saveSubject } from "@/server/actions/academics";
+import { ConfirmAction } from "@/components/forms";
+import { CATEGORY_LABEL, pickStream, type Category } from "@/lib/combination-stream";
 import { CheckboxField, FormDialog, Grid, SelectField, TextField } from "@/components/forms";
 import { Badge, Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TH, TR, TD } from "@/components/data-table";
@@ -16,6 +18,12 @@ export default async function SubjectsPage() {
     prisma.department.findMany({ orderBy: { name: "asc" } }),
   ]);
   const aSubjects = subjects.filter((s) => s.level === "A_LEVEL" && s.isActive);
+  // S5–S6 students not in the stream that holds their combination's category.
+  const aStudents = await prisma.student.findMany({
+    where: { status: "ACTIVE", schoolClass: { level: "A_LEVEL" }, combination: { category: { not: null } } },
+    select: { streamId: true, combination: { select: { category: true } }, schoolClass: { select: { streams: { select: { id: true, name: true, isActive: true, combinationCategory: true } } } } },
+  });
+  const misplaced = aStudents.filter((s) => { const to = pickStream(s.schoolClass.streams, s.combination?.category, s.streamId); return to && to !== s.streamId; }).length;
   const subjectFields = (s?: (typeof subjects)[number]) => (
     <>
       {s && <input type="hidden" name="id" value={s.id} />}
@@ -39,6 +47,7 @@ export default async function SubjectsPage() {
     <>
       {c && <input type="hidden" name="id" value={c.id} />}
       <Grid><TextField label="Code" name="code" defaultValue={c?.code} required /><TextField label="Name" name="name" defaultValue={c?.name} required /></Grid>
+      <SelectField label="Category" name="category" defaultValue={c?.category ?? ""} placeholder="— not set —" options={[{ value: "ARTS", label: "Arts" }, { value: "SCIENCES", label: "Sciences" }]} hint="Students with this combination are placed in the S5/S6 stream that holds this category (e.g. S5 ARTS or S5 SCIENCE)." />
       <div className="grid grid-cols-2 gap-1">
         {aSubjects.map((s) => (
           <label key={s.id} className="flex items-center gap-2 text-sm">
@@ -82,10 +91,16 @@ export default async function SubjectsPage() {
           {manage && <FormDialog trigger="New" title="New combination" action={saveCombination} triggerSize="sm">{comboFields()}</FormDialog>}
         </CardHeader>
         <CardContent className="space-y-2">
+          {misplaced > 0 && (
+            <div className="rounded border border-amber-300 bg-amber-50 p-2.5 text-sm text-amber-900">
+              <p className="mb-2">{misplaced} S5–S6 student(s) are not in the stream of their combination&apos;s category.</p>
+              {manage && <ConfirmAction action={placeStudentsByCombination} fields={{}} label="Move them to the right stream" variant="default" confirm={`Move ${misplaced} student(s) to the stream that holds their combination's category (Arts / Sciences)? Their enrolment for this year is updated too.`} />}
+            </div>
+          )}
           {combos.map((c) => (
             <div key={c.id} className="rounded border border-slate-200 p-2.5 text-sm">
               <div className="flex items-start justify-between gap-2">
-                <p className="font-semibold">{c.code} <span className="font-normal text-slate-500">· {c._count.students} students</span></p>
+                <p className="font-semibold">{c.code} {c.category ? <Badge color={c.category === "ARTS" ? "purple" : "blue"}>{CATEGORY_LABEL[c.category as Category]}</Badge> : <Badge color="amber">no category</Badge>} <span className="font-normal text-slate-500">· {c._count.students} students</span></p>
                 {manage && <FormDialog trigger="Edit" title={`Edit ${c.code}`} action={saveCombination} triggerVariant="outline" triggerSize="sm">{comboFields(c)}</FormDialog>}
               </div>
               <p className="text-xs text-slate-500">{c.subjects.map((x) => x.subject.name).join(", ")}</p>

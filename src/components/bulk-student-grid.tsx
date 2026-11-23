@@ -23,10 +23,10 @@ export function BulkStudentGrid({
   action, classId, rows: initial, streams, electives, combinations, houses = [],
 }: {
   action: (p: ActionResult | null, fd: FormData) => Promise<ActionResult>;
-  classId: string; rows: BulkRow[]; streams: Opt[];
+  classId: string; rows: BulkRow[]; streams: (Opt & { category?: string | null })[];
   electives: { id: string; label: string; title: string }[];
   /** A-Level only: combination → its subject ids (ticks follow the combination when it is changed). */
-  combinations: { value: string; label: string; subjectIds: string[] }[] | null;
+  combinations: { value: string; label: string; subjectIds: string[]; category?: string | null }[] | null;
   houses?: Opt[];
 }) {
   const [rows, setRows] = React.useState(initial);
@@ -153,7 +153,10 @@ export function BulkStudentGrid({
                       <select aria-label="Combination" className={cellSelect} value={r.combinationId} onChange={(e) => {
                         const c = combinations.find((x) => x.value === e.target.value);
                         const electiveIds = new Set(electives.map((x) => x.id));
-                        set(r.id, { combinationId: e.target.value, ...(c ? { electives: c.subjectIds.filter((id) => electiveIds.has(id)) } : {}) });
+                        // The stream follows the combination's category (Arts / Sciences) when a stream holds it.
+                        const fit = c?.category ? streams.filter((s) => s.category === c.category) : [];
+                        const stream = fit.some((s) => s.value === r.streamId) ? r.streamId : fit[0]?.value ?? r.streamId;
+                        set(r.id, { combinationId: e.target.value, streamId: stream, ...(c ? { electives: c.subjectIds.filter((id) => electiveIds.has(id)) } : {}) });
                       }}>
                         <option value="">—</option>{combinations.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                       </select>

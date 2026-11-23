@@ -10,6 +10,8 @@ import { generateTempPassword, hashPassword } from "../passwords";
 import { deleteStudentRecord } from "../deletion";
 import { aLevelProblems } from "@/lib/alevel";
 import { classSubjectStatus } from "../class-subjects";
+import { moveToStream, streamForCombination } from "../combination-stream";
+import { pickStream } from "@/lib/combination-stream";
 
 const studentFields = {
   admissionNo: upperOpt(30),
@@ -36,6 +38,8 @@ export const createStudent = action(
     const photoFileId = photo ? (await saveUpload(photo, "STUDENT_PHOTO", user.id, { imagesOnly: true })).id : null;
     const student = await prisma.$transaction(async (tx) => {
       await assertStreamInClass(tx, data.classId, data.streamId);
+      // S5–S6: the stream follows the combination's category (Arts / Sciences).
+      data.streamId = (await streamForCombination(tx, data.classId, data.combinationId, data.streamId)) ?? data.streamId;
       const year = await currentYearOrThrow(tx);
       const admissionNo = data.admissionNo ?? (await generateAdmissionNo(tx, data.admissionDate.getUTCFullYear()));
       const s = await tx.student.create({ data: { ...data, admissionNo, photoFileId } });
@@ -114,6 +118,7 @@ export const changeStudentStatus = action(
 export const setStudentSubjects = action(
   { permission: ["students.manage", "academics.manage"], schema: z.object({ id: zs.id(), subjectIds: zs.ids(), combinationId: zs.optId() }) },
   async ({ id, subjectIds, combinationId }, user) => {
+    let movedTo: string | null = null;
     await prisma.$transaction(async (tx) => {
       const year = await currentYearOrThrow(tx);
       const student = await tx.student.findUniqueOrThrow({ where: { id }, include: { schoolClass: true } });
@@ -131,6 +136,9 @@ export const setStudentSubjects = action(
         if (problems.length) throw new UserError(`S5–S6 take at most 3 principal subjects plus General Paper and either Sub-Maths or Sub-ICT: ${problems.join("; ")}.`);
       }
       await tx.student.update({ where: { id }, data: { combinationId } });
+      // S5–S6: a combination in the other category moves the student to that category's stream.
+      const to = await streamForCombination(tx, student.classId, combinationId, student.streamId);
+      movedTo = (await moveToStream(tx, { studentId: id, fromStreamId: student.streamId, toStreamId: to, classId: student.classId, academicYearId: year.id, userId: user.id, reason: "combination category" })) ? to : null;
       await tx.studentSubject.deleteMany({ where: { studentId: id, academicYearId: year.id, subjectId: { notIn: subjectIds } } });
       for (const subjectId of subjectIds) {
         await tx.studentSubject.upsert({
@@ -140,7 +148,8 @@ export const setStudentSubjects = action(
       }
       await audit(user.id, "SET_SUBJECTS", "Student", id, { subjectIds, combinationId }, tx);
     });
-    return { ok: true, message: "Subjects updated for the current year." };
+    const stream = movedTo ? await prisma.stream.findUnique({ where: { id: movedTo }, select: { name: true } }) : null;
+    return { ok: true, message: `Subjects updated for the current year.${stream ? ` Moved to stream ${stream.name} to match the combination.` : ""}` };
   },
 );
 
@@ -165,7 +174,7 @@ export const promoteStudents = action(
       const toYear = await tx.academicYear.findUniqueOrThrow({ where: { id: toYearId } });
       const fromYear = await currentYearOrThrow(tx);
       if (toYear.id === fromYear.id) throw new UserError("Choose the NEW academic year to promote into (it must differ from the current year).");
-      const students = await tx.student.findMany({ where: { classId: fromClassId, status: "ACTIVE", id: { in: Object.keys(map) } }, include: { stream: true } });
+      const students = await tx.student.findMany({ where: { classId: fromClassId, status: "ACTIVE", id: { in: Object.keys(map) } }, include: { stream: true, combination: { select: { category: true } } } });
       const counts = { PROMOTE: 0, REPEAT: 0, GRADUATE: 0, SKIP: 0 };
       for (const s of students) {
         const d = map[s.id];
@@ -182,7 +191,10 @@ export const promoteStudents = action(
           if (!next) throw new UserError(`${from.name} has no next class; use Graduate for these students.`);
           classId = next.id;
           const same = next.streams.find((x) => x.name === s.stream.name);
-          if (same) streamId = same.id;
+          // S5 → S6: the stream that holds the combination's category (Arts / Sciences) comes first.
+          const byCombination = next.level === "A_LEVEL" ? pickStream(next.streams, s.combination?.category, null) : null;
+          if (byCombination) streamId = byCombination;
+          else if (same) streamId = same.id;
           else if (fallbackStreamId && next.streams.some((x) => x.id === fallbackStreamId)) streamId = fallbackStreamId;
           else throw new UserError(`${next.name} has no stream "${s.stream.name}". Choose a fallback stream.`);
         }
@@ -350,7 +362,9 @@ export const bulkUpdateStudents = action(
       const { status: classStatus } = await classSubjectStatus(tx, classId);
       const levelSubjects = await tx.subject.findMany({ where: { level: cls.level, category: { not: "COMPULSORY" } }, select: { id: true, code: true, name: true, category: true } });
       const electiveIds = new Set(cls.level === "O_LEVEL" ? [...classStatus].filter(([, s]) => s === "OPTIONAL").map(([id]) => id) : levelSubjects.map((s) => s.id));
-      const comboIds = new Set((await tx.subjectCombination.findMany({ select: { id: true } })).map((c) => c.id));
+      const combos = await tx.subjectCombination.findMany({ select: { id: true, category: true } });
+      const comboIds = new Set(combos.map((c) => c.id));
+      const comboCategory = new Map(combos.map((c) => [c.id, c.category as string | null]));
       const houseIds = new Set((await tx.house.findMany({ select: { id: true } })).map((h) => h.id));
       const before = new Map((await tx.student.findMany({
         where: { id: { in: rows.map((r) => r.id) } },
@@ -372,6 +386,8 @@ export const bulkUpdateStudents = action(
           if (problems.length) throw new UserError(`${who}: ${problems.join("; ")} (S5–S6: max 3 principals + General Paper + Sub-Maths or Sub-ICT).`);
         }
 
+        // S5–S6: the stream follows the combination's category when a stream holds it.
+        if (cls.level === "A_LEVEL" && combinationId) r.streamId = pickStream(cls.streams, comboCategory.get(combinationId), r.streamId) ?? r.streamId;
         const data = {
           lastName: r.lastName, firstName: r.firstName, otherNames: r.otherNames || null, gender: r.gender, residence: r.residence,
           linNumber: r.linNumber || null, schoolPayCode: r.schoolPayCode || null, combinationId, houseId: r.houseId || null,

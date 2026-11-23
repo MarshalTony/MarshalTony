@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/db";
+import { CATEGORY_LABEL, streamCategory } from "@/lib/combination-stream";
+
+const CAT_OPTS = [{ value: "ARTS", label: "Arts combinations" }, { value: "SCIENCES", label: "Sciences combinations" }];
 import { requirePage } from "@/server/auth";
 import { saveClass, saveStream } from "@/server/actions/settings";
 import { CheckboxField, FormDialog, Grid, SelectField, TextField } from "@/components/forms";
@@ -30,6 +33,7 @@ export default async function ClassSettings() {
                 <TextField label="Stream name" name="name" placeholder="A, B, East, West…" required />
                 <TextField label="Capacity" name="capacity" type="number" />
                 <SelectField label="Class teacher" name="classTeacherId" options={staffOpts} placeholder="— none —" />
+                {c.level === "A_LEVEL" && <SelectField label="Combinations in this stream" name="combinationCategory" placeholder="Any (not by category)" options={CAT_OPTS} hint="Students are placed here by their combination's category." />}
                 <CheckboxField name="isActive" label="Active" defaultChecked />
               </FormDialog>
               <FormDialog trigger="Edit class" title={`Edit ${c.name}`} action={saveClass} triggerVariant="outline" triggerSize="sm">
@@ -46,7 +50,7 @@ export default async function ClassSettings() {
               <tbody>
                 {c.streams.map((s) => (
                   <TR key={s.id}>
-                    <TD>{c.code} {s.name} {!s.isActive && <Badge color="red">Inactive</Badge>}</TD>
+                    <TD>{c.code} {s.name} {!s.isActive && <Badge color="red">Inactive</Badge>} {c.level === "A_LEVEL" && streamCategory(s) && <Badge color={streamCategory(s) === "ARTS" ? "purple" : "blue"}>{CATEGORY_LABEL[streamCategory(s)!]} combinations</Badge>}</TD>
                     <TD>{s.classTeacher ? `${s.classTeacher.lastName} ${s.classTeacher.firstName}` : "—"}</TD>
                     <TD>{s._count.students}</TD>
                     <TD>{s.capacity ?? "—"}</TD>
@@ -57,6 +61,7 @@ export default async function ClassSettings() {
                         <TextField label="Stream name" name="name" defaultValue={s.name} required />
                         <TextField label="Capacity" name="capacity" type="number" defaultValue={s.capacity?.toString() ?? ""} />
                         <SelectField label="Class teacher" name="classTeacherId" options={staffOpts} placeholder="— none —" defaultValue={s.classTeacherId ?? ""} />
+                        {c.level === "A_LEVEL" && <SelectField label="Combinations in this stream" name="combinationCategory" placeholder="Any (not by category)" options={CAT_OPTS} defaultValue={s.combinationCategory ?? (streamCategory(s) ?? "")} hint="Students are placed here by their combination's category (Arts / Sciences)." />}
                         <CheckboxField name="isActive" label="Active" defaultChecked={s.isActive} />
                       </FormDialog>
                     </TD>

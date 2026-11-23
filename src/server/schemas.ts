@@ -58,3 +58,7 @@ export const poItemsField = z.string().transform((s, ctx) => {
 export const optUrl = z.string().trim().url().optional().or(z.literal("").transform(() => undefined));
 
 export const nonZeroNumber = z.coerce.number().refine((n) => n !== 0, "Quantity cannot be zero");
+
+/** A-Level combination category (Arts / Sciences); empty = not set. */
+export const optCombinationCategory = () =>
+  z.enum(["ARTS", "SCIENCES"]).or(z.literal("")).optional().transform((v) => (v ? v : null));

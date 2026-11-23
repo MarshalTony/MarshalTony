@@ -5,6 +5,7 @@ import { action, zs, UserError } from "../action";
 import { audit } from "../audit";
 import { generateAdmissionNo, defaultSubjectIds, assertStreamInClass, currentYearOrThrow } from "../students";
 import { normaliseQuickRow, quickRowProblems, type QuickRow } from "@/lib/quick-register";
+import { streamForCombination } from "../combination-stream";
 
 const quickRow = z.object({
   lastName: z.string().max(60).default(""), firstName: z.string().max(60).default(""), otherNames: z.string().max(60).default(""),
@@ -44,22 +45,26 @@ export const quickRegisterStudents = action(
       throw new UserError(`Nothing was saved — fix ${problems.length === 1 ? "this" : "these"} first: ${problems.slice(0, 6).join(" · ")}${problems.length > 6 ? ` · …and ${problems.length - 6} more` : ""}${dup ? " (tick “Register even if the name already exists” if they really are different learners)." : ""}`);
     }
 
-    const created = await prisma.$transaction(async (tx) => {
+    const { out: created, moved } = await prisma.$transaction(async (tx) => {
       await assertStreamInClass(tx, classId, streamId);
       const year = await currentYearOrThrow(tx);
       const out: string[] = [];
+      let moved = 0;
       const subjectsFor = new Map<string, string[]>();
       for (const r of rows) {
         const combinationId = cls.level === "A_LEVEL" ? r.combinationId || null : null;
+        // S5–S6: the stream follows the combination's category (Arts / Sciences) when a stream holds it.
+        const rowStream = (await streamForCombination(tx, classId, combinationId, streamId)) ?? streamId;
         const admissionNo = await generateAdmissionNo(tx, admissionDate.getUTCFullYear());
         const s = await tx.student.create({
           data: {
             admissionNo, lastName: r.lastName, firstName: r.firstName, otherNames: r.otherNames || null, gender: r.gender as "MALE" | "FEMALE",
             residence: r.residence as "DAY" | "BOARDING", dateOfBirth: r.dateOfBirth ? new Date(`${r.dateOfBirth}T00:00:00Z`) : null,
-            linNumber: r.linNumber || null, houseId: r.houseId || null, combinationId, classId, streamId, admissionDate,
+            linNumber: r.linNumber || null, houseId: r.houseId || null, combinationId, classId, streamId: rowStream, admissionDate,
           },
         });
-        await tx.enrollment.create({ data: { studentId: s.id, academicYearId: year.id, classId, streamId } });
+        await tx.enrollment.create({ data: { studentId: s.id, academicYearId: year.id, classId, streamId: rowStream } });
+        if (rowStream !== streamId) moved++;
         const key = combinationId ?? "-";
         if (!subjectsFor.has(key)) subjectsFor.set(key, await defaultSubjectIds(tx, classId, combinationId));
         const subjectIds = subjectsFor.get(key)!;
@@ -71,10 +76,10 @@ export const quickRegisterStudents = action(
         }
         out.push(admissionNo);
       }
-      await audit(user.id, "QUICK_REGISTER", "Student", null, { classId, streamId, count: out.length, admissionNos: out }, tx);
-      return out;
+      await audit(user.id, "QUICK_REGISTER", "Student", null, { classId, streamId, count: out.length, admissionNos: out, movedByCombination: moved }, tx);
+      return { out, moved };
     }, { timeout: 120_000 });
     const range = created.length > 1 ? `${created[0]} to ${created[created.length - 1]}` : created[0];
-    return { ok: true, message: `${created.length} student${created.length === 1 ? "" : "s"} registered (${range}).` };
+    return { ok: true, message: `${created.length} student${created.length === 1 ? "" : "s"} registered (${range}).${moved ? ` ${moved} placed in another stream to match their combination (Arts / Sciences).` : ""}` };
   },
 );
