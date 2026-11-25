@@ -42,6 +42,7 @@ export default async function ReadinessPage({ params, searchParams }: { params: 
         title={`Report readiness — ${data.exam.name}`}
         description="What is still missing before report cards are printed: exam marks, Activities of Integration (S1–S4) and comments, per class, stream, subject and teacher."
         actions={<>
+          <Button asChild><Link href={`/exams/${id}/missing${classFilter ? `?classId=${classFilter}` : ""}`}>Students missing scores</Link></Button>
           <Button asChild variant="outline"><Link href="/report-cards">Report cards</Link></Button>
           <Button asChild variant="outline"><Link href={`/exams/${id}`}>Back to exam</Link></Button>
         </>}
@@ -105,7 +106,12 @@ export default async function ReadinessPage({ params, searchParams }: { params: 
                   <tbody>{rows.map((r) => (
                     <TR key={`${r.streamId}:${r.subjectId}`}>
                       <TD className="whitespace-nowrap">{c.code} {c.streams.find((x) => x.id === r.streamId)?.name}</TD>
-                      <TD className="font-medium">{r.subject}</TD>
+                      <TD className="font-medium">
+                        {r.subject}
+                        {(r.marksState !== "complete" || ((r.actState === "partial" || r.actState === "none") && r.chapters !== 0)) && (
+                          <Link className="ml-2 text-xs font-normal text-brand-700 hover:underline" href={`/exams/${id}/missing?classId=${c.id}&streamId=${r.streamId}&subjectId=${r.subjectId}`}>who?</Link>
+                        )}
+                      </TD>
                       <TD className={r.teachers.length ? "text-xs" : "text-xs text-red-700"}>{r.teachers.join(" / ") || "no teacher allocated"}</TD>
                       <TD><Link href={`/exams/${id}/marks?streamId=${r.streamId}&subjectId=${r.subjectId}`} className="block hover:opacity-80"><Meter done={r.marks} expected={r.marksExpected} state={r.marksState} label={r.papers > 1 ? `${r.marks} / ${r.marksExpected} (${r.papers} papers)` : undefined} /></Link></TD>
                       {c.oLevel && (
