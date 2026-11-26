@@ -1,7 +1,7 @@
 import React from "react";
 import { prisma } from "@/lib/db";
 import { getCurrentUser, can } from "@/server/auth";
-import { Document, Page, Text, View, Image, Footer, Letterhead, loadBranding, renderPdf, s, C } from "@/server/reports/pdf-kit";
+import { Document, Page, Text, View, Image, Footer, Letterhead, loadBranding, loadHeadSignature, renderPdf, s, C } from "@/server/reports/pdf-kit";
 import { photoBuffers } from "@/server/reports/photos";
 import { clearanceFor, LEAVING_REASONS } from "@/server/leaving";
 import { pdfResponse } from "@/server/http";
@@ -40,6 +40,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const his = st.gender === "MALE" ? "his" : "her";
   const He = he[0].toUpperCase() + he.slice(1);
   const head = school?.headteacherName ? school.headteacherName : "";
+  const headSig = await loadHeadSignature();
   const reason = rec ? LEAVING_REASONS.find((r) => r.value === rec.reason)?.label ?? rec.reason : null;
   const from = fmtDate(st.admissionDate);
   const to = rec ? fmtDate(rec.leavingDate) : "date";
@@ -51,6 +52,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const signature = (
     <View style={{ marginTop: 26, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }} wrap={false}>
       <View>
+        {headSig ? <Image src={headSig} style={{ height: 40, maxWidth: 170, objectFit: "contain", marginBottom: -4 }} /> : null}
         <Text>……………………………………………</Text>
         <Text style={s.bold}>{head || "HEADTEACHER"}</Text>
         <Text style={s.small}>Headteacher, {b.name}</Text>

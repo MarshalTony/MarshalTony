@@ -20,6 +20,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       }
     } else if (file.category === "STAFF_PHOTO") {
       allowed = can(user, "staff.view");
+    } else if (file.category === "SIGNATURE") {
+      allowed = can(user, "settings.manage"); // the headteacher's signature: administrators only (it prints inside documents)
     } else if (file.category === "MATERIAL") {
       allowed = true; // learning materials: any signed-in user
     } else {
@@ -33,7 +35,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     headers: {
       "Content-Type": file.mimeType,
       "Content-Length": String(body.length),
-      "Cache-Control": file.category === "PUBLIC" ? "public, max-age=86400" : "private, max-age=3600",
+      "Cache-Control": file.category === "PUBLIC" ? "public, max-age=86400" : file.category === "SIGNATURE" ? "private, no-store" : "private, max-age=3600",
       "Content-Disposition": `inline; filename="${file.originalName.replace(/[^\w.-]/g, "_")}"`,
       "X-Content-Type-Options": "nosniff",
     },

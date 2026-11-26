@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { requirePage, can } from "@/server/auth";
 import { getSchool } from "@/server/school";
-import { saveSchoolProfile, saveReportTemplate, saveNotificationPrefs } from "@/server/actions/settings";
-import { ActionForm, CheckboxField, Grid, TextField, TextAreaField } from "@/components/forms";
+import { saveSchoolProfile, saveReportTemplate, saveNotificationPrefs, saveHeadSignature, removeHeadSignature } from "@/server/actions/settings";
+import { ActionForm, CheckboxField, Grid, TextField, TextAreaField, ConfirmAction } from "@/components/forms";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImageField } from "@/components/image-field";
+import { SignatureField } from "@/components/signature-field";
 import { channelConfigured } from "@/server/messaging";
 
 export default async function SchoolSettings() {
@@ -39,6 +40,22 @@ export default async function SchoolSettings() {
           </ActionForm>
         </CardContent>
       </Card>
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle>Headteacher&apos;s signature{s.headteacherName ? <span className="block text-xs font-normal text-slate-500">{s.headteacherName}</span> : null}</CardTitle>
+          {s.headSignatureFileId && <ConfirmAction action={removeHeadSignature} fields={{}} label="Remove signature" variant="ghost" confirm="Remove the headteacher's signature? Documents will print an empty signature line." />}
+        </CardHeader>
+        <CardContent>
+          <p className="mb-3 text-sm text-slate-600">
+            Printed above the headteacher&apos;s signature line on <b>report cards</b> (S1–S4 and S5–S6) and on <b>leaving documents</b> (leaving certificate, testimonial, transfer and recommendation letters).
+            The image is private: it is only used inside printed documents and only administrators can see it here. Replace it when the headteacher changes.
+            {t.printHeadSignature === false && <b className="text-amber-700"> Printing is switched off in the Report card template below.</b>}
+          </p>
+          <ActionForm action={saveHeadSignature} submitLabel="Save signature">
+            <SignatureField name="signature" currentUrl={s.headSignatureFileId ? `/api/files/${s.headSignatureFileId}` : null} />
+          </ActionForm>
+        </CardContent>
+      </Card>
       <div className="space-y-5">
         <Card>
           <CardHeader><CardTitle>Report card template</CardTitle></CardHeader>
@@ -51,6 +68,7 @@ export default async function SchoolSettings() {
               <CheckboxField name="showAttendance" label="Show attendance summary" defaultChecked={t.showAttendance !== false} />
               <CheckboxField name="showGradingKey" label="Show grading key" defaultChecked={t.showGradingKey !== false} />
               <CheckboxField name="cbcOLevel" label="S1–S4 reports use the competency-based format for every exam (activities of integration out of 3 → out of 20, + the exam out of 80)" defaultChecked={t.cbcOLevel !== false} />
+              <CheckboxField name="printHeadSignature" label="Print the headteacher's signature on report cards and leaving documents (when one is saved above)" defaultChecked={t.printHeadSignature !== false} />
               <CheckboxField name="aLevelPapers" label="S5–S6 reports use the school's A-Level format (each paper P/1, P/2 with BOT, EOT and average, paper grade D1–F9, subject grade A–F and total points)" defaultChecked={t.aLevelPapers !== false} />
               <CheckboxField name="requireMarksApproval" label="Marks need DOS approval before they count (teachers submit, DOS approves). Off: saved marks count straight away; close the exam to stop entry." defaultChecked={t.requireMarksApproval === true} />
               <TextField label="Class teacher label" name="classTeacherLabel" defaultValue={t.classTeacherLabel ?? "Class Teacher"} required />

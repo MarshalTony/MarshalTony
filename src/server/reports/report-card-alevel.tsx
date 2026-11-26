@@ -1,7 +1,7 @@
 import "server-only";
 import React from "react";
 import { prisma } from "@/lib/db";
-import { Page, Text, View, Image, type Branding } from "./pdf-kit";
+import { Page, Text, View, Image, loadHeadSignature, type Branding } from "./pdf-kit";
 import { loadPaperBands } from "../exams/results";
 import { gradeSubject, initials, paperLabel, SUBJECT_POINTS, termAverage } from "@/lib/uace";
 
@@ -55,6 +55,7 @@ export async function buildALevelPages(ctx: Ctx, studentIds: string[]) {
     prisma.teacherAllocation.findMany({ where: { academicYearId: yearId }, include: { staff: true } }),
     loadPaperBands(),
   ]);
+  const headSig = await loadHeadSignature();
   const markOf = new Map(marks.map((m) => [`${m.examId}:${m.studentId}:${m.subjectId}:${m.paper}`, m]));
   const local = (p: string) => p.replace(/\s/g, "").replace(/^\+?256/, "0");
   const phones = [school.phone, school.altPhone].filter(Boolean).map((p) => local(p!)).join("/");
@@ -229,7 +230,9 @@ export async function buildALevelPages(ctx: Ctx, studentIds: string[]) {
               <View key={i} style={[t.row, { alignItems: "flex-end" }]}>
                 <Text style={{ width: 118 }}>{label}</Text>
                 <View style={{ flex: 1, borderBottomWidth: 0.6, borderBottomColor: ink, borderStyle: "dashed", minHeight: 12, paddingBottom: 1 }}>
-                  <Text style={{ fontFamily: "Helvetica-BoldOblique" }}>{(text ?? "").toUpperCase()}</Text>
+                  {i === 3 && headSig
+                    ? <Image src={headSig} style={{ height: 30, maxWidth: 150, objectFit: "contain", marginBottom: -3 }} />
+                    : <Text style={{ fontFamily: "Helvetica-BoldOblique" }}>{(text ?? "").toUpperCase()}</Text>}
                 </View>
               </View>
             ))}

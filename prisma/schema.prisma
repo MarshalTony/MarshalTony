@@ -17,26 +17,28 @@ datasource db {
 // ============================================================================
 
 model SchoolSetting {
-  id                Int      @id @default(1)
-  name              String
-  motto             String?
-  address           String?
-  poBox             String?
-  website           String?
-  email             String?
-  altEmail          String?
-  phone             String?
-  altPhone          String?
-  logoFileId        String?
-  centreNumberUce   String?
-  centreNumberUace  String?
-  reportFooter      String?
-  headteacherName   String?
+  id                  Int      @id @default(1)
+  name                String
+  motto               String?
+  address             String?
+  poBox               String?
+  website             String?
+  email               String?
+  altEmail            String?
+  phone               String?
+  altPhone            String?
+  logoFileId          String?
+  centreNumberUce     String?
+  centreNumberUace    String?
+  reportFooter        String?
+  headteacherName     String?
+  /// Headteacher's signature image (private file, category SIGNATURE), printed on report cards and leaving documents
+  headSignatureFileId String?
   // Report-card template options (show/hide sections, signature labels...)
-  reportTemplate    Json     @default("{}")
+  reportTemplate      Json     @default("{}")
   // Notification switches (e.g. send SMS on payment)
-  notificationPrefs Json     @default("{}")
-  updatedAt         DateTime @updatedAt
+  notificationPrefs   Json     @default("{}")
+  updatedAt           DateTime @updatedAt
 }
 
 model User {

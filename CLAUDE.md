@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-25 — Readiness: students missing scores._
+_Last updated: 2026-11-26 — headteacher's digital signature._
 
 ## 1. What this is
 
@@ -61,7 +61,7 @@ See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/DEPLOYMENT.md`, `docs/API.
 - Dev server: `npx next dev -p 3000`. Demo data: `npm run db:demo` (demo users and their password are in `prisma/demo-data.ts`;
   `teacher1` = Okello Peter, class teacher of S1 A, English everywhere; also `bursar`, `librarian`).
   Local admin password can be reset with a bcrypt update in a scratch script (never commit it).
-- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (131 tests at last count:
+- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (134 tests at last count:
   unit in `tests/unit`, DB integration in `tests/integration`). Acceptance suite: `npm run test:acceptance`.
 - Browser verification with Playwright (pre-installed; `require('playwright')`), scripts kept in the scratchpad
   (they are not in the repo). Log in, drive the page, save PDFs and render them with `pdftoppm`/`pdftotext` to check.
@@ -80,7 +80,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 `continuous_assessment` (LearningActivity, ActivityScore, CompetencyRemark, SchoolPay code, altEmail, band descriptions),
 `leaving_clearance` (StudentClearance, LeavingRecord), `comment_bank` (CommentTemplate), `subject_report_order` (Subject.reportOrder, default 100),
 `subject_papers` (Subject.paperCount — sets A-Level subjects except GP/S-MTC to 2; Mark.paper + new unique key),
-`clubs_houses_confirmation` (House, Club, ClubMember, StudentConfirmation; Student.houseId), `class_subjects` (ClassSubject + enum ClassSubjectStatus), `combination_category` (enum CombinationCategory; SubjectCombination.category, Stream.combinationCategory, with defaults).
+`clubs_houses_confirmation` (House, Club, ClubMember, StudentConfirmation; Student.houseId), `class_subjects` (ClassSubject + enum ClassSubjectStatus), `combination_category` (enum CombinationCategory; SubjectCombination.category, Stream.combinationCategory, with defaults), `head_signature` (SchoolSetting.headSignatureFileId).
 
 ## 6. Decisions agreed with the school (do not undo without asking)
 
@@ -138,6 +138,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
   set password / disable. Admin-typed passwords also in Settings → Users (create + Set password). Helpers `src/server/users.ts`.
 - **Menus follow permissions** (`src/lib/nav.ts` + `navFor`); every menu item's perms match its page's `requirePage`; Settings redirects
   to the first tab a user may open. Verified per role by opening every visible menu link.
+- **Headteacher's signature** (Settings → School profile card; `components/signature-field.tsx`: draw on a pad or upload a photo — paper removed + trimmed in the browser by `src/lib/signature.ts`; actions `saveHeadSignature` / `removeHeadSignature`): private `StoredFile` category `SIGNATURE` (only `settings.manage` may open it, no-store), `SchoolSetting.headSignatureFileId`; printed via `loadHeadSignature()` (pdf-kit) on the S1–S4 card, A-Level card, standard card and leaving documents; switch `reportTemplate.printHeadSignature` (default on).
 - **Favicon / app icon:** `/api/icon?size=` (school logo via sharp, fallback "BO" badge; `/favicon.ico` rewritten to it in `next.config.ts`; icon tags in `src/app/layout.tsx` metadata).
 - **Fees & finance, HR/payroll, library, inventory, welfare/discipline, transport, communication, reports, settings, audit, backup, portals** — from phases 4–6 (see docs).
 

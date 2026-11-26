@@ -41,6 +41,15 @@ export async function loadBranding(): Promise<Branding> {
   };
 }
 
+/** The headteacher's signature image for printed documents (null when none is saved or printing is switched off). */
+export async function loadHeadSignature(): Promise<Buffer | null> {
+  const sch = await prisma.schoolSetting.findUnique({ where: { id: 1 }, select: { headSignatureFileId: true, reportTemplate: true } });
+  if (!sch?.headSignatureFileId || (sch.reportTemplate as { printHeadSignature?: boolean } | null)?.printHeadSignature === false) return null;
+  const f = await prisma.storedFile.findUnique({ where: { id: sch.headSignatureFileId } });
+  if (!f || f.mimeType === "image/webp") return null;
+  return readStoredFile(f.key, f.data).catch(() => null);
+}
+
 export function Letterhead({ b, right }: { b: Branding; right?: React.ReactNode }) {
   return (
     <View style={s.header}>

@@ -34,7 +34,7 @@ export const saveReportTemplate = action(
     permission: "settings.manage",
     schema: z.object({
       showPhoto: zs.bool(), showSubjectPositions: zs.bool(), showStreamPosition: zs.bool(), showClassPosition: zs.bool(),
-      showAttendance: zs.bool(), showGradingKey: zs.bool(), cbcOLevel: zs.bool(), aLevelPapers: zs.bool(), requireMarksApproval: zs.bool(), classTeacherLabel: zs.str(60), dosLabel: zs.str(60), headLabel: zs.str(60),
+      showAttendance: zs.bool(), showGradingKey: zs.bool(), cbcOLevel: zs.bool(), aLevelPapers: zs.bool(), printHeadSignature: zs.bool(), requireMarksApproval: zs.bool(), classTeacherLabel: zs.str(60), dosLabel: zs.str(60), headLabel: zs.str(60),
     }),
   },
   async (input, user) => {
@@ -398,5 +398,38 @@ export const saveMessageTemplate = action(
     const t = id ? await prisma.messageTemplate.update({ where: { id }, data }) : await prisma.messageTemplate.create({ data });
     await audit(user.id, id ? "UPDATE" : "CREATE", "MessageTemplate", t.id, { code: data.code });
     return { ok: true, message: "Template saved." };
+  },
+);
+
+// ---------------- Headteacher's signature ----------------
+/** Save the headteacher's signature (a PNG made on the page: drawn, or a photo with the paper removed). Stored as a private file. */
+export const saveHeadSignature = action(
+  { permission: "settings.manage", revalidate: "/settings", schema: z.object({}) },
+  async (_d, user, fd) => {
+    const file = fileFrom(fd, "signature");
+    if (!file) throw new UserError("Draw or upload the signature first, then press Use this signature.");
+    if (file.size > 600 * 1024) throw new UserError("The signature image is too large. Try again with a closer photo.");
+    const before = await prisma.schoolSetting.findUniqueOrThrow({ where: { id: 1 }, select: { headSignatureFileId: true } });
+    const saved = await saveUpload(file, "SIGNATURE", user.id, { imagesOnly: true });
+    await prisma.$transaction(async (tx) => {
+      await tx.schoolSetting.update({ where: { id: 1 }, data: { headSignatureFileId: saved.id } });
+      if (before.headSignatureFileId) await tx.storedFile.deleteMany({ where: { id: before.headSignatureFileId } });
+      await audit(user.id, "SET_HEAD_SIGNATURE", "SchoolSetting", "1", { replaced: !!before.headSignatureFileId }, tx);
+    });
+    return { ok: true, message: "Headteacher's signature saved. It now prints on report cards and leaving documents." };
+  },
+);
+
+export const removeHeadSignature = action(
+  { permission: "settings.manage", revalidate: "/settings", schema: z.object({}) },
+  async (_d, user) => {
+    const before = await prisma.schoolSetting.findUniqueOrThrow({ where: { id: 1 }, select: { headSignatureFileId: true } });
+    if (!before.headSignatureFileId) return { ok: true, message: "There is no signature to remove." };
+    await prisma.$transaction(async (tx) => {
+      await tx.schoolSetting.update({ where: { id: 1 }, data: { headSignatureFileId: null } });
+      await tx.storedFile.deleteMany({ where: { id: before.headSignatureFileId! } });
+      await audit(user.id, "REMOVE_HEAD_SIGNATURE", "SchoolSetting", "1", {}, tx);
+    });
+    return { ok: true, message: "Headteacher's signature removed. Documents now print an empty signature line." };
   },
 );

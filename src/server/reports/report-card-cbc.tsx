@@ -1,7 +1,7 @@
 import "server-only";
 import React from "react";
 import { prisma } from "@/lib/db";
-import { Page, Text, View, Image, type Branding } from "./pdf-kit";
+import { Page, Text, View, Image, loadHeadSignature, type Branding } from "./pdf-kit";
 import { activityAverage, bandFor, DEFAULT_ACTIVITY_BANDS, summaryRow, type Band } from "@/lib/cbc";
 import { gradeFor } from "@/lib/exams/engine";
 
@@ -53,6 +53,7 @@ export async function buildCbcPages(ctx: Ctx, studentIds: string[]) {
   const gradeBands = (oScale?.bands ?? []).map((x) => ({ grade: x.grade, minScore: Number(x.minScore), maxScore: Number(x.maxScore), points: Number(x.points), remark: x.remark, description: x.description }));
   const idBands: Band[] = actScale ? actScale.bands.map((x) => ({ grade: x.grade, minScore: Number(x.minScore), maxScore: Number(x.maxScore), remark: x.remark, description: x.description })) : DEFAULT_ACTIVITY_BANDS;
   const { b, school } = ctx;
+  const headSig = await loadHeadSignature();
   // Local format as printed on the school's card: +256 772 314 931 → 0772314931
   const local = (p: string) => p.replace(/\s/g, "").replace(/^\+?256/, "0");
   const phones = [school.phone, school.altPhone].filter(Boolean).map((p) => local(p!)).join("/");
@@ -192,7 +193,12 @@ export async function buildCbcPages(ctx: Ctx, studentIds: string[]) {
               <View key={i} style={{ width: "50%", padding: 8, borderLeftWidth: i ? 0.4 : 0, borderColor: "#d0d0d0" }}>
                 <Text style={[t.b, { textAlign: "center", marginBottom: 8 }]}>{label}</Text>
                 <Text style={{ textAlign: "center", minHeight: 14, marginBottom: 10 }}>{text ?? ""}</Text>
-                <Text>Signature:.........................................</Text>
+                {i === 1 && headSig ? (
+                  <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+                    <Text>Signature: </Text>
+                    <Image src={headSig} style={{ height: 34, maxWidth: 150, objectFit: "contain", marginBottom: -2 }} />
+                  </View>
+                ) : <Text>Signature:.........................................</Text>}
               </View>
             ))}
           </View>

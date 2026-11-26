@@ -1,7 +1,7 @@
 import "server-only";
 import React from "react";
 import { prisma } from "@/lib/db";
-import { Document, Page, Text, View, Image, Footer, Letterhead, loadBranding, renderPdf, s, C } from "./pdf-kit";
+import { Document, Page, Text, View, Image, Footer, Letterhead, loadBranding, loadHeadSignature, renderPdf, s, C } from "./pdf-kit";
 import { photoBuffers } from "./photos";
 import { loadRule, loadScales } from "../exams/results";
 import { buildCbcPages } from "./report-card-cbc";
@@ -41,6 +41,8 @@ export async function renderReportCards(examId: string, studentIds: string[], ge
     : [];
   const aPages = school && aIds.length ? await buildALevelPages({ exam, b, school, photos }, aIds) : new Map<string, React.ReactElement>();
 
+  const headSig = await loadHeadSignature();
+  const headLabelText = tpl.headLabel + (school?.headteacherName ? ` (${school.headteacherName})` : "");
   const cell = (w: string, extra: object = {}) => ({ width: w, padding: 3, fontSize: 8, borderBottomWidth: 0.5, borderBottomColor: C.line, ...extra });
   const doc = (
     <Document title={`Report cards — ${exam.name}`} author={b.name}>
@@ -123,7 +125,12 @@ export async function renderReportCards(examId: string, studentIds: string[], ge
                 <View key={label as string} style={{ borderBottomWidth: 0.5, borderBottomColor: C.line, paddingBottom: 4 }}>
                   <Text style={s.bold}>{label}&apos;s comment:</Text>
                   <Text style={{ minHeight: 14 }}>{text || " "}</Text>
-                  <Text style={[s.small, { textAlign: "right" }]}>Signature: ____________________</Text>
+                  {label === headLabelText && headSig ? (
+                    <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "flex-end" }}>
+                      <Text style={s.small}>Signature: </Text>
+                      <Image src={headSig} style={{ height: 28, maxWidth: 130, objectFit: "contain" }} />
+                    </View>
+                  ) : <Text style={[s.small, { textAlign: "right" }]}>Signature: ____________________</Text>}
                 </View>
               ))}
             </View>
