@@ -1,14 +1,17 @@
 import Link from "next/link";
-import { marksApprovalRequired } from "@/server/exams/approval-setting";
-import { Users, Briefcase, Wallet, AlertTriangle, CheckCircle2, Receipt, ClipboardList, CalendarCheck } from "lucide-react";
+import { Users, Briefcase, Wallet, AlertTriangle, CheckCircle2, Circle, Receipt, ClipboardList, CalendarCheck, ListChecks } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
 import { collections, dailyCollections, kampalaDayRange, totalOutstanding } from "@/server/queries/fees";
 import { visibleAnnouncements } from "@/server/queries/announcements";
-import { Badge, Card, CardContent, CardHeader, CardTitle, PageHeader, StatCard, StatusBadge } from "@/components/ui/card";
+import { Alert, Badge, Card, CardContent, CardHeader, CardTitle, PageHeader, StatCard } from "@/components/ui/card";
 import { Table, THead, TH, TR, TD } from "@/components/data-table";
 import { PairedBarChart, SimpleBarChart, TrendLineChart } from "@/components/charts";
 import { TimetableGrid } from "@/components/timetable-grid";
+import { ProgressMeter } from "@/components/progress-meter";
+import { loadClassTeacher, loadSetupChecklist, loadTeacherSheets } from "@/server/dashboard";
+import { loadProgress } from "@/server/exams/progress";
+import { progressOf } from "@/lib/exams/progress";
 import { fmtDateTime, ugx } from "@/lib/utils";
 
 export const metadata = { title: "Dashboard" };
@@ -26,10 +29,11 @@ export default async function Dashboard() {
     <>
       <PageHeader title={`Welcome, ${user.fullName}`} description={term ? `${term.academicYear.name} · ${term.name} (${term.startDate.toISOString().slice(0, 10)} to ${term.endDate.toISOString().slice(0, 10)})` : "No current term set"} />
       <div className="space-y-6">
+        {can(user, "settings.manage") && <SetupChecklist />}
+        {showTeacher && <TeacherSection staffId={user.staffId!} termId={term?.id} />}
+        {showAcademic && <AcademicSection termId={term?.id} />}
         {showSchool && <SchoolSection showActivity={can(user, "audit.view")} />}
         {showFinance && <FinanceSection termStart={term?.startDate} canExpenses={can(user, "finance.view")} />}
-        {showAcademic && <AcademicSection termId={term?.id} />}
-        {showTeacher && <TeacherSection staffId={user.staffId!} termId={term?.id} />}
         <Card>
           <CardHeader><CardTitle>Announcements</CardTitle><Link href="/announcements" className="text-sm text-brand-700 hover:underline">All</Link></CardHeader>
           <CardContent className="space-y-2">
@@ -105,26 +109,68 @@ async function FinanceSection({ termStart, canExpenses }: { termStart?: Date; ca
   );
 }
 
+/** Administrator: what is still missing to run the school in the system. Hidden once everything is done. */
+async function SetupChecklist() {
+  const items = await loadSetupChecklist();
+  const todo = items.filter((i) => !i.done);
+  if (!todo.length) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><ListChecks className="h-5 w-5 text-brand-700" />Getting the school ready <span className="text-sm font-normal text-slate-500">{items.length - todo.length} of {items.length} done</span></CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-3 h-2 w-full rounded-full bg-slate-100"><div className="h-2 rounded-full bg-emerald-500" style={{ width: `${Math.round(((items.length - todo.length) / items.length) * 100)}%` }} /></div>
+        <ul className="grid gap-2 md:grid-cols-2">
+          {items.map((i) => (
+            <li key={i.key}>
+              <Link href={i.href} className={`flex items-start gap-2 rounded-md border p-2.5 text-sm hover:border-brand-400 ${i.done ? "border-slate-100 bg-slate-50 text-slate-500" : "border-amber-200 bg-amber-50/50"}`}>
+                {i.done ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> : <Circle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />}
+                <span><span className={`block font-medium ${i.done ? "" : "text-slate-900"}`}>{i.title}</span><span className="block text-xs">{i.detail}</span></span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** DOS / headteacher: every exam of the term with how far marks, activity scores and comments are. */
 async function AcademicSection({ termId }: { termId?: string }) {
-  const [subs, latest, open] = await Promise.all([
-    prisma.markSubmission.groupBy({ by: ["status"], where: { exam: { termId } }, _count: true }),
+  const [exams, latest] = await Promise.all([
+    termId ? prisma.exam.findMany({ where: { termId, isComposite: false }, include: { examType: true }, orderBy: [{ examType: { order: "asc" } }, { createdAt: "asc" }] }) : Promise.resolve([]),
     prisma.exam.findFirst({ where: { resultsGeneratedAt: { not: null } }, orderBy: { resultsGeneratedAt: "desc" } }),
-    prisma.exam.findMany({ where: { termId, isComposite: false }, select: { id: true, name: true } }),
   ]);
+  const progress = await Promise.all(exams.map(async (e) => ({ e, t: (await loadProgress(e.id)).totals })));
   const classAvg = latest ? await prisma.$queryRaw<{ code: string; avg: number }[]>`
     SELECT c.code, AVG(r.average)::float AS avg FROM "ExamResult" r JOIN "SchoolClass" c ON c.id = r."classId" WHERE r."examId" = ${latest.id} AND r."classPosition" IS NOT NULL GROUP BY c.code, c."order" ORDER BY c."order"` : [];
   const subjAvg = latest ? await prisma.$queryRaw<{ name: string; avg: number }[]>`
     SELECT COALESCE(s."shortName", s.code) AS name, AVG(sr.percentage)::float AS avg FROM "SubjectResult" sr JOIN "Subject" s ON s.id = sr."subjectId" WHERE sr."examId" = ${latest.id} AND sr.percentage IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 16` : [];
-  const c = (k: string) => subs.find((s) => s.status === k)?._count ?? 0;
+  const meter = (d: { done: number; expected: number }) => <ProgressMeter done={d.done} expected={d.expected} state={progressOf(d.done, d.expected)} label={d.expected ? `${d.done.toLocaleString()} / ${d.expected.toLocaleString()}` : "—"} />;
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Exams this term" value={open.length} hint={open.map((o) => o.name).join(", ").slice(0, 60)} />
-        <StatCard label="Mark sheets in draft" value={c("DRAFT") + c("REJECTED")} hint={`${c("REJECTED")} returned`} />
-        <StatCard label="Awaiting approval" value={c("SUBMITTED")} hint={<Link href="/exams" className="text-brand-700 underline">Review</Link>} />
-        <StatCard label="Approved" value={c("APPROVED")} />
-      </div>
-      {latest && (
+      <Card>
+        <CardHeader><CardTitle>Examinations this term</CardTitle><Link href="/exams" className="text-sm text-brand-700 hover:underline">All examinations</Link></CardHeader>
+        <CardContent>
+          {progress.length === 0 ? <p className="text-sm text-slate-500">No examination this term yet. <Link className="text-brand-700 underline" href="/exams">Create one</Link>.</p> : (
+            <Table>
+              <THead><tr><TH>Examination</TH><TH>Exam marks</TH><TH>Activity scores (S1–S4)</TH><TH>Class-teacher comments</TH><TH>Head-teacher comments</TH><TH /></tr></THead>
+              <tbody>{progress.map(({ e, t }) => (
+                <TR key={e.id}>
+                  <TD className="font-medium"><Link className="text-brand-800 hover:underline" href={`/exams/${e.id}`}>{e.name}</Link></TD>
+                  <TD>{meter(t.marks)}</TD><TD>{meter(t.activities)}</TD><TD>{meter(t.classTeacher)}</TD><TD>{meter(t.headteacher)}</TD>
+                  <TD className="text-sm">
+                    <Link className="block whitespace-nowrap text-brand-700 hover:underline" href={`/exams/${e.id}/readiness`}>Readiness</Link>
+                    <Link className="block whitespace-nowrap text-brand-700 hover:underline" href={`/exams/${e.id}/missing`}>Who is missing?</Link>
+                  </TD>
+                </TR>
+              ))}</tbody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+      {latest && classAvg.length > 0 && (
         <div className="grid gap-5 lg:grid-cols-2">
           <Card><CardContent><SimpleBarChart title={`Class average — ${latest.name} (%)`} data={classAvg.map((r) => ({ cls: r.code, avg: Math.round(r.avg * 10) / 10 }))} x="cls" y="avg" unit="%" domainMax={100} /></CardContent></Card>
           <Card><CardContent><SimpleBarChart title={`Subject average — ${latest.name} (%)`} data={subjAvg.map((r) => ({ s: r.name, avg: Math.round(r.avg * 10) / 10 }))} x="s" y="avg" unit="%" domainMax={100} /></CardContent></Card>
@@ -134,42 +180,77 @@ async function AcademicSection({ termId }: { termId?: string }) {
   );
 }
 
+/** Teacher: their mark sheets this term with progress, class-teacher duties, and today's timetable. */
 async function TeacherSection({ staffId, termId }: { staffId: string; termId?: string }) {
   const dow = ((new Date().getDay() + 6) % 7) + 1;
-  const needsApproval = await marksApprovalRequired();
-  const [allocs, classTeacherOf, slots, openExams] = await Promise.all([
-    prisma.teacherAllocation.findMany({ where: { staffId, academicYear: { isCurrent: true } }, include: { subject: true, stream: { include: { schoolClass: true } } }, orderBy: [{ stream: { schoolClass: { order: "asc" } } }] }),
-    prisma.stream.findMany({ where: { classTeacherId: staffId }, include: { schoolClass: true, _count: { select: { students: { where: { status: "ACTIVE" } } } } } }),
-    termId ? prisma.timetableSlot.findMany({ where: { termId, staffId }, include: { subject: true, stream: { include: { schoolClass: true } } } }) : [],
-    prisma.exam.findMany({ where: { termId, isComposite: false }, include: { submissions: true } }),
+  const [{ rows, termName }, classTeacher, slots] = await Promise.all([
+    loadTeacherSheets(staffId),
+    loadClassTeacher(staffId),
+    termId ? prisma.timetableSlot.findMany({ where: { termId, staffId }, include: { subject: true, stream: { include: { schoolClass: true } } } }) : Promise.resolve([]),
   ]);
+  const exams = [...new Map(rows.flatMap((r) => r.exams.map((e) => [e.examId, e.name] as const))).entries()];
+  const anyOLevel = rows.some((r) => r.oLevel);
+  const marksOwed = rows.reduce((a, r) => a + r.exams.filter((e) => e.state === "none" || e.state === "partial").length, 0);
+  const actsOwed = rows.filter((r) => r.activities && (r.activities.state === "none" || r.activities.state === "partial")).length;
+  const todo = [marksOwed && `${marksOwed} exam mark sheet${marksOwed === 1 ? "" : "s"}`, actsOwed && `activity scores on ${actsOwed} sheet${actsOwed === 1 ? "" : "s"}`].filter(Boolean).join(" and ");
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
+    <>
       <Card>
-        <CardHeader><CardTitle>My classes & marks entry</CardTitle><Link href="/scores" className="text-sm text-brand-700 hover:underline">Enter scores</Link></CardHeader>
+        <CardHeader>
+          <CardTitle>My mark sheets{termName ? <span className="block text-xs font-normal text-slate-500">{termName}</span> : null}</CardTitle>
+          <Link href="/scores" className="text-sm text-brand-700 hover:underline">Enter scores</Link>
+        </CardHeader>
         <CardContent>
-          {classTeacherOf.length > 0 && <p className="mb-2 text-sm">Class teacher of: {classTeacherOf.map((s) => <Badge key={s.id} color="green" className="mr-1">{s.schoolClass.code} {s.name} ({s._count.students})</Badge>)}</p>}
-          <Table>
-            <THead><tr><TH>Subject</TH><TH>Stream</TH>{openExams.map((e) => <TH key={e.id}>{e.name.slice(0, 18)}</TH>)}</tr></THead>
-            <tbody>
-              {allocs.map((a) => (
-                <TR key={a.id}>
-                  <TD>{a.subject.name}</TD><TD>{a.stream.schoolClass.code} {a.stream.name}</TD>
-                  {openExams.map((e) => <TD key={e.id}><Link href={`/exams/${e.id}/marks?streamId=${a.streamId}&subjectId=${a.subjectId}`}>{(() => { const st = e.submissions.find((s) => s.streamId === a.streamId && s.subjectId === a.subjectId)?.status; return <StatusBadge status={!st ? "NOT STARTED" : needsApproval ? st : "MARKS_SAVED"} />; })()}</Link></TD>)}
-                </TR>
+          {rows.length === 0 ? <p className="text-sm text-slate-500">You have no subjects allocated this year. Ask the Director of Studies to allocate your subjects and streams.</p> : (
+            <>
+              {todo ? <Alert tone="warn" className="mb-3">Still to finish: {todo}. Click a bar to open the sheet.</Alert> : exams.length > 0 && <Alert tone="success" className="mb-3">All your marks{anyOLevel ? " and activity scores" : ""} are in for this term.</Alert>}
+              <div className="overflow-x-auto">
+                <Table>
+                  <THead><tr><TH>Subject</TH><TH>Stream</TH><TH className="text-right">Learners</TH>{exams.map(([id, name]) => <TH key={id}>{name}</TH>)}{anyOLevel && <TH>Activity scores</TH>}</tr></THead>
+                  <tbody>{rows.map((r) => (
+                    <TR key={`${r.subjectId}:${r.streamId}`}>
+                      <TD className="font-medium">{r.subject}</TD><TD className="whitespace-nowrap">{r.stream}</TD><TD className="text-right">{r.learners}</TD>
+                      {exams.map(([id]) => {
+                        const e = r.exams.find((x) => x.examId === id);
+                        return <TD key={id}>{e ? <Link href={`/exams/${id}/marks?streamId=${r.streamId}&subjectId=${r.subjectId}`} className="block hover:opacity-80"><ProgressMeter done={e.done} expected={e.expected} state={e.state} /></Link> : <span className="text-xs text-slate-400">—</span>}</TD>;
+                      })}
+                      {anyOLevel && <TD>{r.activities ? (r.activities.chapters === 0
+                        ? <Link href="/scores?type=activity" className="text-xs font-medium text-red-700 hover:underline">add chapters</Link>
+                        : <Link href="/scores?type=activity" className="block hover:opacity-80"><ProgressMeter done={r.activities.done} expected={r.activities.expected} state={r.activities.state} label={`${r.activities.done} / ${r.activities.expected} (${r.activities.chapters} ch.)`} /></Link>) : <span className="text-xs text-slate-400">—</span>}</TD>}
+                    </TR>
+                  ))}</tbody>
+                </Table>
+              </div>
+              {exams.length === 0 && <p className="mt-2 text-sm text-slate-500">No examination has been created for this term yet.</p>}
+            </>
+          )}
+        </CardContent>
+      </Card>
+      <div className="grid gap-5 lg:grid-cols-2">
+        {classTeacher.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle>My class{classTeacher.length > 1 ? "es" : ""}</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {classTeacher.map((c) => (
+                <div key={c.streamId} className="rounded-md border border-slate-200 p-3">
+                  <p className="font-semibold">{c.name} <span className="text-sm font-normal text-slate-500">· {c.learners} learners</span></p>
+                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                    <Link href={`/students/confirm?classId=${c.classId}&streamId=${c.streamId}`} className="block hover:opacity-80"><p className="text-xs text-slate-500">Reported this term</p><ProgressMeter done={c.reported} expected={c.learners} state={progressOf(c.reported, c.learners)} /></Link>
+                    {c.exam && <Link href={`/exams/${c.exam.id}/comments?streamId=${c.streamId}`} className="block hover:opacity-80"><p className="text-xs text-slate-500">My comments — {c.exam.name}</p><ProgressMeter done={c.comments} expected={c.learners} state={progressOf(c.comments, c.learners)} /></Link>}
+                  </div>
+                  <div className="mt-2 flex gap-3 text-sm"><Link href="/attendance" className="text-brand-700 underline">Take attendance</Link><Link href={`/students?streamId=${c.streamId}`} className="text-brand-700 underline">Class list</Link></div>
+                </div>
               ))}
-              {allocs.length === 0 && <TR><TD colSpan={2} className="text-slate-500">No subject allocations this year.</TD></TR>}
-            </tbody>
-          </Table>
-          <div className="mt-3 flex gap-3 text-sm"><Link href="/attendance" className="text-brand-700 underline">Take attendance</Link><Link href="/learning" className="text-brand-700 underline">Assignments</Link></div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader><CardTitle>My timetable</CardTitle></CardHeader>
-        <CardContent>
-          <TimetableGrid title="you" slots={slots.map((s) => ({ id: s.id, day: s.dayOfWeek, start: s.startTime, end: s.endTime, title: s.subject?.name ?? s.label ?? "", sub: `${s.stream.schoolClass.code} ${s.stream.name}${s.dayOfWeek === dow ? " · today" : ""}` }))} />
-        </CardContent>
-      </Card>
-    </div>
+            </CardContent>
+          </Card>
+        )}
+        <Card>
+          <CardHeader><CardTitle>My timetable</CardTitle></CardHeader>
+          <CardContent>
+            {slots.length ? <TimetableGrid title="you" slots={slots.map((s) => ({ id: s.id, day: s.dayOfWeek, start: s.startTime, end: s.endTime, title: s.subject?.name ?? s.label ?? "", sub: `${s.stream.schoolClass.code} ${s.stream.name}${s.dayOfWeek === dow ? " · today" : ""}` }))} /> : <p className="text-sm text-slate-500">No timetable periods yet.</p>}
+          </CardContent>
+        </Card>
+      </div>
+    </>
   );
 }

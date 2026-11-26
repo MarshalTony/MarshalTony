@@ -27,6 +27,8 @@ For the System Administrator, Headteacher and Director of Studies.
 | 9 | School Fees → Fee structures | Enter fees per class for day and boarding students; then *Issue term invoices*. Import opening balances (Excel Imports → Fees opening balances) **once**. |
 | 10 | Parents | Create parent portal accounts from the student or guardian pages and give parents their username and temporary password. |
 
+**Dashboard → Getting the school ready:** a checklist of the set-up still missing (current term, students, subjects, allocations, teacher logins, class teachers, headteacher's name and signature, activity chapters for S1–S4, an exam this term, a backup in the last 14 days). Each line links to the page that fixes it; the card disappears when all are done.
+
 ## Users, roles and permissions
 
 * **Staff logins (Staff → Staff logins):** every staff member with their login status. *Create login* — you type the **username and password** and tick the roles (Teacher is pre-ticked for teaching staff). *Create logins for everyone without one* — usernames are made as **first.last** and everyone gets the starting password you type. *Set password* gives someone a new password (e.g. if they forgot it). By default **"Must change the password at first sign-in"** is ticked, so each person chooses their own password the first time; anyone can change their password later with the key icon at the top. *Disable* stops a person signing in.
