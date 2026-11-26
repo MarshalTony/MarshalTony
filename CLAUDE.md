@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-26 — headteacher's digital signature._
+_Last updated: 2026-11-26 — interface tidy: Students actions grouped, tabs wrap._
 
 ## 1. What this is
 
@@ -136,6 +136,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 - **Staff logins** (`staff/logins`, `users.manage`): per-staff create login with admin-chosen username + password and
   "must change at first sign-in" (default on), bulk create for everyone without one (first.last usernames, one starting password),
   set password / disable. Admin-typed passwords also in Settings → Users (create + Set password). Helpers `src/server/users.ts`.
+- **Students page actions grouped** into `MenuButton` dropdowns (`components/menu-button.tsx`; opens towards the side with room): Print list · Reports (Statistics, Data check, Export) · Manage (Bulk edit, Photos, Clubs & Houses, Confirm, Clearance, Promote) · Add students (Register, Quick registration, Import); items follow permissions. `Tabs` wrap onto a second line instead of hidden scrolling.
 - **Menus follow permissions** (`src/lib/nav.ts` + `navFor`); every menu item's perms match its page's `requirePage`; Settings redirects
   to the first tab a user may open. Verified per role by opening every visible menu link.
 - **Headteacher's signature** (Settings → School profile card; `components/signature-field.tsx`: draw on a pad or upload a photo — paper removed + trimmed in the browser by `src/lib/signature.ts`; actions `saveHeadSignature` / `removeHeadSignature`): private `StoredFile` category `SIGNATURE` (only `settings.manage` may open it, no-store), `SchoolSetting.headSignatureFileId`; printed via `loadHeadSignature()` (pdf-kit) on the S1–S4 card, A-Level card, standard card and leaving documents; switch `reportTemplate.printHeadSignature` (default on).

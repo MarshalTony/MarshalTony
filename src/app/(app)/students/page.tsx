@@ -4,7 +4,6 @@ import { Download, Upload, UserPlus, ArrowUpCircle, Table2, Camera, ClipboardChe
 import { prisma } from "@/lib/db";
 import { requirePage, can } from "@/server/auth";
 import { classTree } from "@/server/queries/lookups";
-import { Button } from "@/components/ui/button";
 import { Alert, PageHeader, StatusBadge } from "@/components/ui/card";
 import { StudentFilters } from "@/components/student-filters";
 import { PrintListDialog } from "@/components/print-list-dialog";
@@ -13,6 +12,7 @@ import { studentName } from "@/lib/utils";
 import { MISSING_OPTIONS, studentWhere } from "@/server/queries/students";
 import { deleteStudent } from "@/server/actions/students";
 import { RowActions } from "@/components/row-actions";
+import { MenuButton } from "@/components/menu-button";
 
 export const metadata = { title: "Students" };
 
@@ -43,6 +43,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
     `${n(byResidence, (r) => r.residence === "DAY")} day · ${n(byResidence, (r) => r.residence === "BOARDING")} boarding`,
   ];
   const manage = can(user, "students.manage");
+  const classQ = sp(params, "classId") ? `?classId=${sp(params, "classId")}` : "";
   return (
     <>
       <PageHeader
@@ -51,18 +52,26 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         actions={
           <>
             <PrintListDialog total={total} canContacts={can(user, "students.manage", "guardians.manage") || can(user, "attendance.take")} />
-            <Button asChild variant="outline"><a href={hrefWith("/api/export/students", params, {})}><Download />Export Excel</a></Button>
-            {can(user, "students.import") && <Button asChild variant="outline"><Link href="/imports?kind=students"><Upload />Import</Link></Button>}
-            {manage && <Button asChild variant="outline"><Link href={`/students/photos${sp(params, "classId") ? `?classId=${sp(params, "classId")}` : ""}`}><Camera />Photos</Link></Button>}
-            {manage && <Button asChild variant="outline"><Link href={`/students/bulk${sp(params, "classId") ? `?classId=${sp(params, "classId")}` : ""}`}><Table2 />Bulk edit</Link></Button>}
-            <Button asChild variant="outline"><Link href="/students/statistics"><BarChart3 />Statistics</Link></Button>
-            <Button asChild variant="outline"><Link href="/students/data-check"><ShieldCheck />Data check</Link></Button>
-            <Button asChild variant="outline"><Link href="/students/groups"><Flag />Clubs & Houses</Link></Button>
-            <Button asChild variant="outline"><Link href="/students/confirm"><UserCheck />Confirm students</Link></Button>
-            <Button asChild variant="outline"><Link href={`/students/clearance${sp(params, "classId") ? `?classId=${sp(params, "classId")}` : ""}`}><ClipboardCheck />Clearance</Link></Button>
-            {manage && <Button asChild variant="secondary"><Link href="/students/promote"><ArrowUpCircle />Promote</Link></Button>}
-            {manage && <Button asChild variant="outline"><Link href="/students/quick"><Zap />Quick registration</Link></Button>}
-            {manage && <Button asChild><Link href="/students/new"><UserPlus />Register student</Link></Button>}
+            <MenuButton label="Reports" icon={<BarChart3 />} items={[
+              { href: "/students/statistics", label: "Statistics", hint: "Enrolment by class, age and sex (EMIS)", icon: <BarChart3 /> },
+              { href: "/students/data-check", label: "Data check", hint: "Missing or wrong records, with fixes", icon: <ShieldCheck /> },
+              { href: hrefWith("/api/export/students", params, {}), label: "Export to Excel", hint: "The list below, with its filters", icon: <Download />, external: true },
+            ]} />
+            <MenuButton label="Manage" icon={<Table2 />} items={[
+              ...(manage ? [{ href: `/students/bulk${classQ}`, label: "Bulk edit", hint: "Change many students of a class at once", icon: <Table2 /> }] : []),
+              ...(manage ? [{ href: `/students/photos${classQ}`, label: "Photos", hint: "Add or change passport photos", icon: <Camera /> }] : []),
+              { href: "/students/groups", label: "Clubs & Houses", hint: "Members of each house and club", icon: <Flag /> },
+              { href: "/students/confirm", label: "Confirm students", hint: "Who has reported this term", icon: <UserCheck /> },
+              { href: `/students/clearance${classQ}`, label: "Clearance & leaving", hint: "Clearance board and leaving documents", icon: <ClipboardCheck /> },
+              ...(manage ? [{ href: "/students/promote", label: "Promote", hint: "Move classes up to the new year", icon: <ArrowUpCircle /> }] : []),
+            ]} />
+            {(manage || can(user, "students.import")) && (
+              <MenuButton label="Add students" icon={<UserPlus />} variant="default" items={[
+                ...(manage ? [{ href: "/students/new", label: "Register one student", hint: "Full form with parent and photo", icon: <UserPlus /> }] : []),
+                ...(manage ? [{ href: "/students/quick", label: "Quick registration", hint: "A whole class list, typed or pasted", icon: <Zap /> }] : []),
+                ...(can(user, "students.import") ? [{ href: "/imports?kind=students", label: "Import from Excel", hint: "Many classes at once from a template", icon: <Upload /> }] : []),
+              ]} />
+            )}
           </>
         }
       />
