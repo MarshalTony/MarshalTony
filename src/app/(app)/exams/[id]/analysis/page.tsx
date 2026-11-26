@@ -125,7 +125,7 @@ export default async function AnalysisPage({ params, searchParams }: { params: P
       <div className="mb-5 grid gap-5 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>Stream averages</CardTitle></CardHeader>
-          <CardContent><SimpleBarChart title="Average (%) by stream" data={s.streamAvg.map((x) => ({ stream: `${a.cls.code} ${x.name} (${x.n})`, avg: x.avg ?? 0 }))} x="stream" y="avg" unit="%" domainMax={100} height={220} /></CardContent>
+          <CardContent><SimpleBarChart title="Average (%) by stream" data={s.streamAvg.map((x) => ({ stream: `${a.cls.code} ${x.name} (${x.n})`, avg: x.avg ?? 0 }))} x="stream" y="avg" unit="%" domainMax={100} height={220} bands={{ passMark: opts.passMark }} /></CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle>Grade spread (all subject marks)</CardTitle></CardHeader>

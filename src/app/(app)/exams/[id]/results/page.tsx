@@ -101,7 +101,7 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
       <Card className="mb-5">
         <CardHeader><CardTitle>Subject performance</CardTitle></CardHeader>
         <CardContent className="grid gap-5 lg:grid-cols-2">
-          <SimpleBarChart title="Average score by subject (%)" data={analysis.map((a) => ({ subject: subjectName.get(a.subjectId) ?? "?", avg: a.average }))} x="subject" y="avg" unit="%" domainMax={100} height={280} />
+          <SimpleBarChart title="Average score by subject (%)" data={analysis.map((a) => ({ subject: subjectName.get(a.subjectId) ?? "?", avg: a.average }))} x="subject" y="avg" unit="%" domainMax={100} height={280} bands={{}} />
           <Table>
             <THead><tr><TH>Subject</TH><TH>Sat</TH><TH>Average</TH><TH>Highest</TH><TH>Lowest</TH><TH>Grades</TH></tr></THead>
             <tbody>

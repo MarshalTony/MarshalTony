@@ -172,8 +172,8 @@ async function AcademicSection({ termId }: { termId?: string }) {
       </Card>
       {latest && classAvg.length > 0 && (
         <div className="grid gap-5 lg:grid-cols-2">
-          <Card><CardContent><SimpleBarChart title={`Class average — ${latest.name} (%)`} data={classAvg.map((r) => ({ cls: r.code, avg: Math.round(r.avg * 10) / 10 }))} x="cls" y="avg" unit="%" domainMax={100} /></CardContent></Card>
-          <Card><CardContent><SimpleBarChart title={`Subject average — ${latest.name} (%)`} data={subjAvg.map((r) => ({ s: r.name, avg: Math.round(r.avg * 10) / 10 }))} x="s" y="avg" unit="%" domainMax={100} /></CardContent></Card>
+          <Card><CardContent><SimpleBarChart title={`Class average — ${latest.name} (%)`} data={classAvg.map((r) => ({ cls: r.code, avg: Math.round(r.avg * 10) / 10 }))} x="cls" y="avg" unit="%" domainMax={100} bands={{}} /></CardContent></Card>
+          <Card><CardContent><SimpleBarChart title={`Subject average — ${latest.name} (%)`} data={subjAvg.map((r) => ({ s: r.name, avg: Math.round(r.avg * 10) / 10 }))} x="s" y="avg" unit="%" domainMax={100} bands={{}} /></CardContent></Card>
         </div>
       )}
     </>

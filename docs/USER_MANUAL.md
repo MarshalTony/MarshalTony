@@ -34,7 +34,7 @@ Everything above, plus: write **class-teacher comments** and conduct for your st
 
 **Entering scores for a teacher:** Academics → Enter Scores → *Activity scores* or *End of term scores* → **1. Teacher (staff) → 2. Class → 3. Subject → 4. Term → 5. Year**. Only that teacher's allocated classes and subjects are listed, and that teacher's name is printed as the subject teacher on the report card. (The system administrator and anyone with the "enter marks for any class" permission work the same way.)
 
-**Dashboard → Examinations this term:** each exam of the current term with bars for exam marks, activity scores (S1–S4), class-teacher and head-teacher comments; *Readiness* and *Who is missing?* open the detail. The class and subject averages of the latest results are below.
+**Dashboard → Examinations this term:** each exam of the current term with bars for exam marks, activity scores (S1–S4), class-teacher and head-teacher comments; *Readiness* and *Who is missing?* open the detail. The class and subject averages of the latest results are below, coloured like the Analysis page: **green** 70 % and above, **amber** pass mark to 69 %, **red** below the pass mark (dashed line). The same colours are used on the exam's results and analysis charts.
 
 Set up examinations, approve or return mark sheets, correct approved marks (with a reason), generate and publish results, view rankings (best 12 per class, best 3 per stream), subject analysis and broadsheets, write DOS comments, print report cards, manage timetables, the academic calendar and UNEB candidate records. See ADMIN_MANUAL.md → *Termly cycle*.
 
