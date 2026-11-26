@@ -114,7 +114,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 
 ## 7. Feature inventory (where things live)
 
-- **Students:** list with smart search/filters (`src/server/queries/students.ts`, `components/student-filters.tsx`), profile (with **Results history**: chart, card averages/grades/change/positions, subject-by-subject — `components/results-history.tsx`), register/edit/delete,
+- **Students:** list with smart search/filters (`src/server/queries/students.ts`, `components/student-filters.tsx`: main row Class/Stream/Sex/Day-boarding, *More filters* panel with count badge that auto-opens, removable chips under *Showing:*), profile (with **Results history**: chart, card averages/grades/change/positions, subject-by-subject — `components/results-history.tsx`), register/edit/delete,
   **Bulk edit** (`students/bulk`), **Photos** (`students/photos`, upload many by admission number), **Print list** PDFs (nominal roll,
   attendance, mark sheet, parents' contacts, photo register — `api/pdf/class-list`), **Leaving & clearance** (`students/[id]/leaving`,
   class board `students/clearance`, PDFs `api/pdf/leaving/[id]`: clearance form, leaving certificate/testimonial, transfer, recommendation),
