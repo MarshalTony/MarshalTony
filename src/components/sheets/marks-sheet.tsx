@@ -94,7 +94,7 @@ export async function MarksSheet({
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <MarksGrid
-            key={paper}
+            key={`${examId}:${streamId}:${subjectId}:${paper}:${correction}`}
             action={saveMarksAction}
             rows={rows}
             max={Number(es.maxMarks)}

@@ -84,6 +84,7 @@ export async function ActivitySheet({
         <Alert>No active learners in this stream take {subject.name}.</Alert>
       ) : (
         <ActivityGrid
+          key={`${term.id}:${stream.id}:${subject.id}`}
           action={saveActivityScores}
           activities={activities.map((a) => ({ id: a.id, title: a.title }))}
           bands={bands}

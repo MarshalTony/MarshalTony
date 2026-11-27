@@ -11,11 +11,18 @@ Sign in at **https://smis.bishopogez.com** with the username and temporary passw
   * **Exam scores:** choose the **Examination** (beginning of term, mid-term, end of term… — open exams are listed first and chosen automatically). Out of 100, or 80 for O-Level end of term. Type a mark, **ABS** (absent) or **EX** (exempted). Marks above the maximum are shown in red and cannot be saved. Press *Enter* to move down. *Save marks* as often as you like.
 * **Your dashboard — My mark sheets:** every subject and stream you teach this term, with a bar per examination ("18 / 40" = 18 of 40 marks in; for A-Level each paper counts) and, for S1–S4, the activity scores ("add chapters" when none exist yet). Green = complete, amber = partly done, red = nothing yet. Click a bar to open that sheet. A yellow note at the top says what is still to finish.
 * **Other examinations** (beginning / mid term): Dashboard → *My mark sheets* (click the bar), or Examinations → the exam → your subject and stream. The sheet works the same way.
+* **Nothing you type is lost:** marks and activity scores you have typed but not saved are kept on your phone or computer. If the internet drops, the battery dies or the page closes, open the same sheet again — a yellow note says the entries were brought back; check them and press Save (or *Throw them away*). The bar at the bottom always shows **All saved** or **N not saved yet**. Changed boxes are outlined in yellow.
+* **On a phone:** the boxes are bigger, the number keypad opens by itself, the **ABS** button next to each box marks a learner absent, and the Save button stays at the bottom of the screen.
+* **Install as an app:** on an Android phone open the system in Chrome → menu ⋮ → *Add to home screen* / *Install app* (on iPhone: Safari → Share → *Add to Home Screen*). It opens full screen with the school crest as its icon.
 * **Import marks from Excel:** *Download pre-filled template* (your students are already listed), fill the Mark column, upload, check the preview and confirm. Rows with errors are listed and not imported.
 * **No approval step (default):** saved marks count straight away and appear on report cards; you can keep correcting them at any time — examinations stay open for marks entry. *If the school switches DOS approval on* (Settings), you instead *Submit marks* when every student has a mark/ABS/EX; they are then locked until the DOS approves or returns them with a reason.
 * **Attendance:** Attendance → choose stream and date → tick P/A/L/E → *Save*.
 * **Assignments & materials:** publish assignments (with due date and attachment) and learning materials for your classes; students see them in their portal.
 * **Leave:** HR, Leave & Payroll → *Apply for leave*.
+
+## Finding students
+
+**Students → filters:** type a name or number and/or choose Class, Stream, Sex, Day/boarding (and *More filters*), then press **Search** (or Enter). Filters you changed but have not searched yet are outlined in yellow. Click a filter under *Showing:* to remove it, or *Clear all*.
 
 ## Class teachers
 

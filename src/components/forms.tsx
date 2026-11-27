@@ -15,6 +15,8 @@ type ServerAction = (prev: ActionResult | null, fd: FormData) => Promise<ActionR
 
 const ErrorsCtx = React.createContext<Record<string, string>>({});
 const PendingCtx = React.createContext(false);
+/** True while the surrounding ActionForm is saving. */
+export function usePending() { return React.useContext(PendingCtx); }
 
 export function SubmitButton({ children, pendingText, ...props }: ButtonProps & { pendingText?: string }) {
   const status = useFormStatus();
@@ -38,7 +40,13 @@ export function ActionForm({
   // Toasts fire as soon as the server answers, so feedback still shows when the
   // action re-renders the page and removes this form (e.g. an "Approve" button).
   const withToast = React.useCallback(async (prev: ActionResult | null, fd: FormData) => {
-    const r = await action(prev, fd);
+    let r: ActionResult;
+    try {
+      r = await action(prev, fd);
+    } catch {
+      // No connection / server unreachable: keep what was typed and say so, instead of breaking the page.
+      r = { ok: false, error: "Could not reach the server — check the internet connection and press Save again. Nothing you typed has been lost." };
+    }
     if (r.ok && r.message) toast.success(r.message, { duration: r.message.includes("password") ? 30000 : 5000 });
     else if (!r.ok && r.error) toast.error(r.error);
     return r;

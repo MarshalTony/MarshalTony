@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-27 — support contact (system administrator) on the sign-in page._
+_Last updated: 2026-11-27 — safe & phone-friendly marks entry, install as app, Search button on student filters._
 
 ## 1. What this is
 
@@ -61,7 +61,7 @@ See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/DEPLOYMENT.md`, `docs/API.
 - Dev server: `npx next dev -p 3000`. Demo data: `npm run db:demo` (demo users and their password are in `prisma/demo-data.ts`;
   `teacher1` = Okello Peter, class teacher of S1 A, English everywhere; also `bursar`, `librarian`).
   Local admin password can be reset with a bcrypt update in a scratch script (never commit it).
-- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (141 tests at last count:
+- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (144 tests at last count:
   unit in `tests/unit`, DB integration in `tests/integration`). Acceptance suite: `npm run test:acceptance`.
 - Browser verification with Playwright (pre-installed; `require('playwright')`), scripts kept in the scratchpad
   (they are not in the repo). Log in, drive the page, save PDFs and render them with `pdftoppm`/`pdftotext` to check.
@@ -114,7 +114,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 
 ## 7. Feature inventory (where things live)
 
-- **Students:** list with smart search/filters (`src/server/queries/students.ts`, `components/student-filters.tsx`: main row Class/Stream/Sex/Day-boarding, *More filters* panel with count badge that auto-opens, removable chips under *Showing:*), profile (with **Results history**: chart, card averages/grades/change/positions, subject-by-subject — `components/results-history.tsx`), register/edit/delete,
+- **Students:** list with smart search/filters (`src/server/queries/students.ts`, `components/student-filters.tsx`: main row Class/Stream/Sex/Day-boarding, *More filters* panel with count badge that auto-opens; choices are a draft until **Search** (or Enter) — changed ones outlined amber with a hint; removable chips under *Showing:* apply at once), profile (with **Results history**: chart, card averages/grades/change/positions, subject-by-subject — `components/results-history.tsx`), register/edit/delete,
   **Bulk edit** (`students/bulk`), **Photos** (`students/photos`, upload many by admission number), **Print list** PDFs (nominal roll,
   attendance, mark sheet, parents' contacts, photo register — `api/pdf/class-list`), **Leaving & clearance** (`students/[id]/leaving`,
   class board `students/clearance`, PDFs `api/pdf/leaving/[id]`: clearance form, leaving certificate/testimonial, transfer, recommendation),
@@ -141,6 +141,8 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 - **Performance colours on % charts:** `SimpleBarChart bands={{ passMark }}` colours bars green 70 %+ / amber pass–69 % / red below (`src/lib/performance-band.ts`, status palette), dashed pass-mark line, legend, band in tooltip — dashboard class & subject averages, exam results subject chart, analysis stream chart (follows the chosen pass mark).
 - **Theme colour** (Settings → School profile → *Theme colour*; `components/theme-color-field.tsx`: crest colours found by `logoSwatches`, suggestions `PRESETS`, any colour, live preview; action `saveThemeColor`, empty = default blue, audited SET_THEME_COLOR): `SchoolSetting.themeColor` → `brandScale()` (`src/lib/theme.ts`, OKLCH with fixed lightness steps so contrast holds for any hue — tested) → `<ThemeStyle />` writes `--brand-50…950` (RGB triples) in the app, auth and portal layouts; `tailwind.config.ts` `brand-*` = `rgb(var(--brand-N) / <alpha-value>)`, defaults (blue) in `globals.css`. PDFs keep their own colours.
 - **Sign-in page** (`app/(auth)/layout.tsx`): school colour panel with crest on a white tile, name, motto, P.O. Box + address and email (mailto) from the school profile (on phones under the form); form on the right (stacked on phones); under the form *Need help signing in? Contact <supportName>: <supportPhone>* (tap-to-call; Settings → School profile → Support contact; owner asked for the system admin's number instead of the school/headteacher lines — hidden when empty). `SchoolLogo tile` = crest on a white tile (menu bar, portal header).
+- **Marks entry never loses work** (`components/use-draft.ts` + `src/lib/drafts.ts`, tested): `MarksGrid` and `ActivityGrid` keep changed cells in localStorage (`smis-draft:marks|activities:<sheet>`, each with the server value it replaced, so a draft never overwrites a mark saved by someone else since; `norm` treats 50 = 50.0, a = ABS), restore them with a notice (*Throw them away*), warn before leaving with unsaved changes, changed cells amber; `components/save-bar.tsx` sticky bottom bar *Saving… / N not saved yet / All saved* + Save. `ActionForm` catches network failures ("Could not reach the server … nothing lost") instead of crashing. Phones: bigger boxes (16px, no zoom), adm. no. under the name, **ABS** button per row (number keypad has no letters), sticky learner column on activity scores, `enterKeyHint`. Grids are keyed per sheet.
+- **Install as app (PWA):** `src/app/manifest.ts` (dynamic: school name, theme colour, crest icons `/api/icon?size=192|512&solid=1` = crest on opaque white with margin), `public/sw.js` (no data caching; navigations offline → friendly "No internet" page; served `no-cache`), registered by `components/register-sw.tsx` in the root layout; `generateViewport` sets the phone status-bar colour from the theme; `appleWebApp` meta. Chrome installability check: no errors.
 - **Menus follow permissions** (`src/lib/nav.ts` + `navFor`); every menu item's perms match its page's `requirePage`; Settings redirects
   to the first tab a user may open. Verified per role by opening every visible menu link.
 - **Headteacher's signature** (Settings → School profile card; `components/signature-field.tsx`: draw on a pad or upload a photo — paper removed + trimmed in the browser by `src/lib/signature.ts`; actions `saveHeadSignature` / `removeHeadSignature`): private `StoredFile` category `SIGNATURE` (only `settings.manage` may open it, no-store), `SchoolSetting.headSignatureFileId`; printed via `loadHeadSignature()` (pdf-kit) on the S1–S4 card, A-Level card, standard card and leaving documents; switch `reportTemplate.printHeadSignature` (default on).

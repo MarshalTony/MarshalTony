@@ -17,6 +17,8 @@ function badge(size: number) {
 export async function GET(req: Request) {
   const want = Number(new URL(req.url).searchParams.get("size")) || 32;
   const size = SIZES.reduce((a, b) => (Math.abs(b - want) < Math.abs(a - want) ? b : a));
+  // ?solid=1 (home-screen app icon): crest on a white square with a little margin, never transparent.
+  const solid = new URL(req.url).searchParams.get("solid") === "1";
   const sharp = (await import("sharp")).default;
   let png: Buffer | null = null;
   try {
@@ -25,7 +27,13 @@ export async function GET(req: Request) {
     if (file && file.category === "PUBLIC") {
       const raw = await readStoredFile(file.key, file.data);
       // Fit the whole logo inside a square on white (JPEG logos have no transparency anyway).
-      png = await sharp(raw).rotate().resize(size, size, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: file.mimeType === "image/png" ? 0 : 1 } }).png().toBuffer();
+      if (solid) {
+        const inner = Math.round(size * 0.84), pad = Math.floor((size - inner) / 2);
+        png = await sharp(raw).rotate().resize(inner, inner, { fit: "contain", background: "#ffffff" }).flatten({ background: "#ffffff" })
+          .extend({ top: pad, bottom: size - inner - pad, left: pad, right: size - inner - pad, background: "#ffffff" }).png().toBuffer();
+      } else {
+        png = await sharp(raw).rotate().resize(size, size, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: file.mimeType === "image/png" ? 0 : 1 } }).png().toBuffer();
+      }
     }
   } catch {
     png = null; // fall back to the badge
