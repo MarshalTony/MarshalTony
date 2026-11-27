@@ -8,6 +8,8 @@ import { ThemeStyle } from "@/components/theme-style";
 /** Sign-in and password pages: the school's crest, name and motto on its own colour, with the form beside it. */
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const school = await getSchool();
+  // Postal address and email from the school profile (Settings → School profile).
+  const postal = [school.poBox, school.address].filter(Boolean).join(", ");
   // Help with signing in comes from the system administrator (Settings → School profile → Support contact), not the school office lines.
   const tel = school.supportPhone?.replace(/[^\d+]/g, "");
   const support = school.supportPhone ? (
@@ -28,12 +30,22 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
             <p className="mt-2 hidden text-sm text-brand-200 lg:block">School Management Information System</p>
           </div>
         </div>
-        {school.address && <p className="relative mt-10 hidden text-sm text-brand-200 lg:block">{school.address}</p>}
+        {(postal || school.email) && (
+          <div className="relative mt-10 hidden space-y-1 text-sm text-brand-100 lg:block">
+            {postal && <p>{postal}</p>}
+            {school.email && <p>Email: <a href={`mailto:${school.email}`} className="underline">{school.email}</a></p>}
+          </div>
+        )}
       </section>
       <main className="flex flex-1 items-start justify-center px-4 py-8 lg:items-center lg:py-10">
         <div className="w-full max-w-sm">
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">{children}</div>
           {support && <p className="mt-6 text-center text-sm text-slate-600">{support}</p>}
+          {(postal || school.email) && (
+            <p className="mt-3 text-center text-xs text-slate-500 lg:hidden">
+              {postal}{postal && school.email ? " · " : ""}{school.email && <a href={`mailto:${school.email}`} className="underline">{school.email}</a>}
+            </p>
+          )}
         </div>
       </main>
     </div>
