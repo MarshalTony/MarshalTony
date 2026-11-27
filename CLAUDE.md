@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-26 — percentage charts coloured by performance band._
+_Last updated: 2026-11-27 — school theme colour + branded sign-in page._
 
 ## 1. What this is
 
@@ -61,7 +61,7 @@ See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/DEPLOYMENT.md`, `docs/API.
 - Dev server: `npx next dev -p 3000`. Demo data: `npm run db:demo` (demo users and their password are in `prisma/demo-data.ts`;
   `teacher1` = Okello Peter, class teacher of S1 A, English everywhere; also `bursar`, `librarian`).
   Local admin password can be reset with a bcrypt update in a scratch script (never commit it).
-- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (137 tests at last count:
+- Checks before every commit: `npx tsc --noEmit`, `npx next lint`, `npx vitest run` (141 tests at last count:
   unit in `tests/unit`, DB integration in `tests/integration`). Acceptance suite: `npm run test:acceptance`.
 - Browser verification with Playwright (pre-installed; `require('playwright')`), scripts kept in the scratchpad
   (they are not in the repo). Log in, drive the page, save PDFs and render them with `pdftoppm`/`pdftotext` to check.
@@ -80,7 +80,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 `continuous_assessment` (LearningActivity, ActivityScore, CompetencyRemark, SchoolPay code, altEmail, band descriptions),
 `leaving_clearance` (StudentClearance, LeavingRecord), `comment_bank` (CommentTemplate), `subject_report_order` (Subject.reportOrder, default 100),
 `subject_papers` (Subject.paperCount — sets A-Level subjects except GP/S-MTC to 2; Mark.paper + new unique key),
-`clubs_houses_confirmation` (House, Club, ClubMember, StudentConfirmation; Student.houseId), `class_subjects` (ClassSubject + enum ClassSubjectStatus), `combination_category` (enum CombinationCategory; SubjectCombination.category, Stream.combinationCategory, with defaults), `head_signature` (SchoolSetting.headSignatureFileId).
+`clubs_houses_confirmation` (House, Club, ClubMember, StudentConfirmation; Student.houseId), `class_subjects` (ClassSubject + enum ClassSubjectStatus), `combination_category` (enum CombinationCategory; SubjectCombination.category, Stream.combinationCategory, with defaults), `head_signature` (SchoolSetting.headSignatureFileId), `theme_color` (SchoolSetting.themeColor).
 
 ## 6. Decisions agreed with the school (do not undo without asking)
 
@@ -139,6 +139,8 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 - **Students page actions grouped** into `MenuButton` dropdowns (`components/menu-button.tsx`; opens towards the side with room): Print list · Reports (Statistics, Data check, Export) · Manage (Bulk edit, Photos, Clubs & Houses, Confirm, Clearance, Promote) · Add students (Register, Quick registration, Import); items follow permissions. `Tabs` wrap onto a second line instead of hidden scrolling.
 - **Dashboard by role** (`app/(app)/dashboard/page.tsx`, data `src/server/dashboard.ts`, checklist rules `src/lib/dashboard.ts`, bar `components/progress-meter.tsx`): `settings.manage` → *Getting the school ready* checklist (hidden when all done); `exams.manage`/`marks.approve` → *Examinations this term* (loadProgress totals: marks, activities, CT/HT comments → Readiness / Who is missing) + latest-results charts; teachers → *My mark sheets* (subject × stream × exam progress, papers counted; activity chapters; links to the marks sheet) and *My class* (reported this term, comments for the latest exam) + timetable; school stats/finance kept below.
 - **Performance colours on % charts:** `SimpleBarChart bands={{ passMark }}` colours bars green 70 %+ / amber pass–69 % / red below (`src/lib/performance-band.ts`, status palette), dashed pass-mark line, legend, band in tooltip — dashboard class & subject averages, exam results subject chart, analysis stream chart (follows the chosen pass mark).
+- **Theme colour** (Settings → School profile → *Theme colour*; `components/theme-color-field.tsx`: crest colours found by `logoSwatches`, suggestions `PRESETS`, any colour, live preview; action `saveThemeColor`, empty = default blue, audited SET_THEME_COLOR): `SchoolSetting.themeColor` → `brandScale()` (`src/lib/theme.ts`, OKLCH with fixed lightness steps so contrast holds for any hue — tested) → `<ThemeStyle />` writes `--brand-50…950` (RGB triples) in the app, auth and portal layouts; `tailwind.config.ts` `brand-*` = `rgb(var(--brand-N) / <alpha-value>)`, defaults (blue) in `globals.css`. PDFs keep their own colours.
+- **Sign-in page** (`app/(auth)/layout.tsx`): school colour panel with crest on a white tile, name, motto, address/contacts; form on the right (stacked on phones). `SchoolLogo tile` = crest on a white tile (menu bar, portal header).
 - **Menus follow permissions** (`src/lib/nav.ts` + `navFor`); every menu item's perms match its page's `requirePage`; Settings redirects
   to the first tab a user may open. Verified per role by opening every visible menu link.
 - **Headteacher's signature** (Settings → School profile card; `components/signature-field.tsx`: draw on a pad or upload a photo — paper removed + trimmed in the browser by `src/lib/signature.ts`; actions `saveHeadSignature` / `removeHeadSignature`): private `StoredFile` category `SIGNATURE` (only `settings.manage` may open it, no-store), `SchoolSetting.headSignatureFileId`; printed via `loadHeadSignature()` (pdf-kit) on the S1–S4 card, A-Level card, standard card and leaving documents; switch `reportTemplate.printHeadSignature` (default on).

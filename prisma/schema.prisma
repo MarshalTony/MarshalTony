@@ -34,6 +34,8 @@ model SchoolSetting {
   headteacherName     String?
   /// Headteacher's signature image (private file, category SIGNATURE), printed on report cards and leaving documents
   headSignatureFileId String?
+  /// Theme colour (#rrggbb) for the menu bar, buttons and links; null = the default blue
+  themeColor          String?
   // Report-card template options (show/hide sections, signature labels...)
   reportTemplate      Json     @default("{}")
   // Notification switches (e.g. send SMS on payment)

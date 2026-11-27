@@ -3,6 +3,7 @@ import { LogOut, KeyRound } from "lucide-react";
 import { getCurrentUser } from "@/server/auth";
 import { getSchool } from "@/server/school";
 import { SchoolLogo } from "@/components/logo";
+import { ThemeStyle } from "@/components/theme-style";
 import { logoutAction } from "@/server/actions/auth";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -10,9 +11,10 @@ export default async function PortalLayout({ children }: { children: React.React
   const isStaff = user?.roles.some((r) => r !== "PARENT" && r !== "STUDENT");
   return (
     <div className="min-h-screen">
+      <ThemeStyle />
       <header className="no-print border-b border-brand-800 bg-brand-900 text-white">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-          <SchoolLogo fileId={school.logoFileId} size={34} />
+          <SchoolLogo fileId={school.logoFileId} size={36} tile />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{school.name}</p>
             <p className="text-xs text-brand-200">{user?.roles.includes("PARENT") ? "Parent portal" : "Student portal"}</p>

@@ -433,3 +433,13 @@ export const removeHeadSignature = action(
     return { ok: true, message: "Headteacher's signature removed. Documents now print an empty signature line." };
   },
 );
+
+export const saveThemeColor = action(
+  { permission: "settings.manage", revalidate: "/", schema: z.object({ themeColor: z.string().trim().regex(/^(#[0-9a-fA-F]{6})?$/, "Choose a colour.").optional() }) },
+  async ({ themeColor }, user) => {
+    const color = themeColor ? themeColor.toLowerCase() : null;
+    await prisma.schoolSetting.update({ where: { id: 1 }, data: { themeColor: color } });
+    await audit(user.id, "SET_THEME_COLOR", "SchoolSetting", "1", { themeColor: color });
+    return { ok: true, message: color ? "Theme colour saved. The menu, buttons and links now use it for everyone." : "Back to the default blue." };
+  },
+);

@@ -6,7 +6,7 @@ export const getSchool = cache(async () => {
   return (
     s ?? {
       id: 1, name: "Bishop Ogez High School", motto: null, address: null, poBox: null, website: "www.bishopogez.com",
-      email: "ogezhigh@gmail.com", altEmail: null, phone: "+256 772 314 931", altPhone: null, logoFileId: null, headSignatureFileId: null, centreNumberUce: null,
+      email: "ogezhigh@gmail.com", altEmail: null, phone: "+256 772 314 931", altPhone: null, logoFileId: null, headSignatureFileId: null, themeColor: null, centreNumberUce: null,
       centreNumberUace: null, reportFooter: null, headteacherName: null, reportTemplate: {}, notificationPrefs: {}, updatedAt: new Date(),
     }
   );

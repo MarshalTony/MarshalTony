@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 import { requirePage, can } from "@/server/auth";
 import { getSchool } from "@/server/school";
-import { saveSchoolProfile, saveReportTemplate, saveNotificationPrefs, saveHeadSignature, removeHeadSignature } from "@/server/actions/settings";
+import { saveSchoolProfile, saveReportTemplate, saveNotificationPrefs, saveHeadSignature, removeHeadSignature, saveThemeColor } from "@/server/actions/settings";
 import { ActionForm, CheckboxField, Grid, TextField, TextAreaField, ConfirmAction } from "@/components/forms";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImageField } from "@/components/image-field";
 import { SignatureField } from "@/components/signature-field";
+import { ThemeColorField } from "@/components/theme-color-field";
 import { channelConfigured } from "@/server/messaging";
 
 export default async function SchoolSettings() {
@@ -37,6 +38,14 @@ export default async function SchoolSettings() {
               <TextField label="Headteacher's name" name="headteacherName" defaultValue={s.headteacherName ?? ""} />
             </Grid>
             <TextAreaField label="Report card footer" name="reportFooter" defaultValue={s.reportFooter ?? ""} rows={2} />
+          </ActionForm>
+        </CardContent>
+      </Card>
+      <Card className="lg:col-span-2">
+        <CardHeader><CardTitle>Theme colour<span className="block text-xs font-normal text-slate-500">The colour of the menu bar, buttons and links for everyone, and of the sign-in page.</span></CardTitle></CardHeader>
+        <CardContent>
+          <ActionForm action={saveThemeColor} submitLabel="Save theme colour">
+            <ThemeColorField name="themeColor" current={s.themeColor} logoUrl={s.logoFileId ? `/api/files/${s.logoFileId}` : null} />
           </ActionForm>
         </CardContent>
       </Card>

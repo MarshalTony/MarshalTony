@@ -4,6 +4,7 @@ import { navFor } from "@/lib/nav";
 import { getSchool } from "@/server/school";
 import { AppShell } from "@/components/shell";
 import { SchoolLogo } from "@/components/logo";
+import { ThemeStyle } from "@/components/theme-style";
 import { logoutAction } from "@/server/actions/auth";
 import { visibleAnnouncements } from "@/server/queries/announcements";
 import { prisma } from "@/lib/db";
@@ -18,10 +19,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     prisma.term.findFirst({ where: { isCurrent: true }, select: { name: true, academicYear: { select: { name: true } } } }),
   ]);
   return (
+    <>
+    <ThemeStyle />
     <AppShell
       nav={navFor(user.permissions)}
       user={{ fullName: user.fullName, roles: user.roles }}
-      school={{ name: school.name, logo: <SchoolLogo fileId={school.logoFileId} size={36} /> }}
+      school={{ name: school.name, logo: <SchoolLogo fileId={school.logoFileId} size={40} tile /> }}
       notifications={notes.map((n) => ({ id: n.id, title: n.title, urgent: n.isUrgent }))}
       canSearchStudents={user.permissions.has("students.view")}
       period={{ label: term ? `${term.academicYear.name} · ${term.name}` : "No current term", href: user.permissions.has("settings.manage") ? "/settings/academic" : null }}
@@ -29,5 +32,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     >
       {children}
     </AppShell>
+    </>
   );
 }
