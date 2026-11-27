@@ -36,6 +36,8 @@ export default async function SchoolSettings() {
               <TextField label="UNEB centre no. (UCE)" name="centreNumberUce" defaultValue={s.centreNumberUce ?? ""} />
               <TextField label="UNEB centre no. (UACE)" name="centreNumberUace" defaultValue={s.centreNumberUace ?? ""} />
               <TextField label="Headteacher's name" name="headteacherName" defaultValue={s.headteacherName ?? ""} />
+              <TextField label="Support contact name (sign-in page)" name="supportName" defaultValue={s.supportName ?? ""} placeholder="e.g. System administrator" hint="Shown on the sign-in page for anyone who needs help" />
+              <TextField label="Support phone (sign-in page)" name="supportPhone" defaultValue={s.supportPhone ?? ""} placeholder="e.g. 0772 123 456" />
             </Grid>
             <TextAreaField label="Report card footer" name="reportFooter" defaultValue={s.reportFooter ?? ""} rows={2} />
           </ActionForm>

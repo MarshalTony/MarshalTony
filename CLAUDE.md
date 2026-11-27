@@ -4,7 +4,7 @@ Loaded automatically into every Claude Code session (and kept across context com
 **Keep it current:** after each feature, update "Feature inventory", "Live data state" and "Pending"
 in the same commit. No secrets here (no passwords, keys or connection strings).
 
-_Last updated: 2026-11-27 — school theme colour + branded sign-in page._
+_Last updated: 2026-11-27 — support contact (system administrator) on the sign-in page._
 
 ## 1. What this is
 
@@ -80,7 +80,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 `continuous_assessment` (LearningActivity, ActivityScore, CompetencyRemark, SchoolPay code, altEmail, band descriptions),
 `leaving_clearance` (StudentClearance, LeavingRecord), `comment_bank` (CommentTemplate), `subject_report_order` (Subject.reportOrder, default 100),
 `subject_papers` (Subject.paperCount — sets A-Level subjects except GP/S-MTC to 2; Mark.paper + new unique key),
-`clubs_houses_confirmation` (House, Club, ClubMember, StudentConfirmation; Student.houseId), `class_subjects` (ClassSubject + enum ClassSubjectStatus), `combination_category` (enum CombinationCategory; SubjectCombination.category, Stream.combinationCategory, with defaults), `head_signature` (SchoolSetting.headSignatureFileId), `theme_color` (SchoolSetting.themeColor).
+`clubs_houses_confirmation` (House, Club, ClubMember, StudentConfirmation; Student.houseId), `class_subjects` (ClassSubject + enum ClassSubjectStatus), `combination_category` (enum CombinationCategory; SubjectCombination.category, Stream.combinationCategory, with defaults), `head_signature` (SchoolSetting.headSignatureFileId), `theme_color` (SchoolSetting.themeColor), `support_contact` (SchoolSetting.supportName, supportPhone).
 
 ## 6. Decisions agreed with the school (do not undo without asking)
 
@@ -140,7 +140,7 @@ Migrations (all additive after init): `init`, `financial_immutability`, `subject
 - **Dashboard by role** (`app/(app)/dashboard/page.tsx`, data `src/server/dashboard.ts`, checklist rules `src/lib/dashboard.ts`, bar `components/progress-meter.tsx`): `settings.manage` → *Getting the school ready* checklist (hidden when all done); `exams.manage`/`marks.approve` → *Examinations this term* (loadProgress totals: marks, activities, CT/HT comments → Readiness / Who is missing) + latest-results charts; teachers → *My mark sheets* (subject × stream × exam progress, papers counted; activity chapters; links to the marks sheet) and *My class* (reported this term, comments for the latest exam) + timetable; school stats/finance kept below.
 - **Performance colours on % charts:** `SimpleBarChart bands={{ passMark }}` colours bars green 70 %+ / amber pass–69 % / red below (`src/lib/performance-band.ts`, status palette), dashed pass-mark line, legend, band in tooltip — dashboard class & subject averages, exam results subject chart, analysis stream chart (follows the chosen pass mark).
 - **Theme colour** (Settings → School profile → *Theme colour*; `components/theme-color-field.tsx`: crest colours found by `logoSwatches`, suggestions `PRESETS`, any colour, live preview; action `saveThemeColor`, empty = default blue, audited SET_THEME_COLOR): `SchoolSetting.themeColor` → `brandScale()` (`src/lib/theme.ts`, OKLCH with fixed lightness steps so contrast holds for any hue — tested) → `<ThemeStyle />` writes `--brand-50…950` (RGB triples) in the app, auth and portal layouts; `tailwind.config.ts` `brand-*` = `rgb(var(--brand-N) / <alpha-value>)`, defaults (blue) in `globals.css`. PDFs keep their own colours.
-- **Sign-in page** (`app/(auth)/layout.tsx`): school colour panel with crest on a white tile, name, motto, address/contacts; form on the right (stacked on phones). `SchoolLogo tile` = crest on a white tile (menu bar, portal header).
+- **Sign-in page** (`app/(auth)/layout.tsx`): school colour panel with crest on a white tile, name, motto, address; form on the right (stacked on phones); under the form *Need help signing in? Contact <supportName>: <supportPhone>* (tap-to-call; Settings → School profile → Support contact; owner asked for the system admin's number instead of the school/headteacher lines — hidden when empty). `SchoolLogo tile` = crest on a white tile (menu bar, portal header).
 - **Menus follow permissions** (`src/lib/nav.ts` + `navFor`); every menu item's perms match its page's `requirePage`; Settings redirects
   to the first tab a user may open. Verified per role by opening every visible menu link.
 - **Headteacher's signature** (Settings → School profile card; `components/signature-field.tsx`: draw on a pad or upload a photo — paper removed + trimmed in the browser by `src/lib/signature.ts`; actions `saveHeadSignature` / `removeHeadSignature`): private `StoredFile` category `SIGNATURE` (only `settings.manage` may open it, no-store), `SchoolSetting.headSignatureFileId`; printed via `loadHeadSignature()` (pdf-kit) on the S1–S4 card, A-Level card, standard card and leaving documents; switch `reportTemplate.printHeadSignature` (default on).

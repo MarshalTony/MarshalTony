@@ -8,7 +8,11 @@ import { ThemeStyle } from "@/components/theme-style";
 /** Sign-in and password pages: the school's crest, name and motto on its own colour, with the form beside it. */
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const school = await getSchool();
-  const contact = [school.phone, school.email].filter(Boolean).join(" · ");
+  // Help with signing in comes from the system administrator (Settings → School profile → Support contact), not the school office lines.
+  const tel = school.supportPhone?.replace(/[^\d+]/g, "");
+  const support = school.supportPhone ? (
+    <>Need help signing in? Contact {school.supportName || "the system administrator"}: <a href={`tel:${tel}`} className="font-medium underline">{school.supportPhone}</a></>
+  ) : null;
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 lg:flex-row">
       <ThemeStyle />
@@ -24,17 +28,12 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
             <p className="mt-2 hidden text-sm text-brand-200 lg:block">School Management Information System</p>
           </div>
         </div>
-        {(school.address || contact) && (
-          <div className="relative mt-10 hidden space-y-1 text-sm text-brand-200 lg:block">
-            {school.address && <p>{school.address}</p>}
-            {contact && <p>{contact}</p>}
-          </div>
-        )}
+        {school.address && <p className="relative mt-10 hidden text-sm text-brand-200 lg:block">{school.address}</p>}
       </section>
       <main className="flex flex-1 items-start justify-center px-4 py-8 lg:items-center lg:py-10">
         <div className="w-full max-w-sm">
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">{children}</div>
-          <p className="mt-6 text-center text-xs text-slate-500 lg:hidden">{contact}</p>
+          {support && <p className="mt-6 text-center text-sm text-slate-600">{support}</p>}
         </div>
       </main>
     </div>

@@ -16,7 +16,7 @@ export const saveSchoolProfile = action(
     schema: z.object({
       name: zs.str(150), motto: zs.optStr(200), address: zs.optStr(300), poBox: zs.optStr(100), website: zs.optStr(150),
       email: zs.email(), altEmail: zs.email(), phone: zs.optStr(40), altPhone: zs.optStr(40), centreNumberUce: zs.optStr(20), centreNumberUace: zs.optStr(20),
-      headteacherName: zs.optStr(120), reportFooter: zs.optStr(300),
+      headteacherName: zs.optStr(120), reportFooter: zs.optStr(300), supportName: zs.optStr(120), supportPhone: zs.optStr(40),
     }),
   },
   async (input, user, fd) => {

@@ -36,6 +36,9 @@ model SchoolSetting {
   headSignatureFileId String?
   /// Theme colour (#rrggbb) for the menu bar, buttons and links; null = the default blue
   themeColor          String?
+  /// Support contact on the sign-in page (the system administrator), instead of the school's own numbers
+  supportName         String?
+  supportPhone        String?
   // Report-card template options (show/hide sections, signature labels...)
   reportTemplate      Json     @default("{}")
   // Notification switches (e.g. send SMS on payment)
